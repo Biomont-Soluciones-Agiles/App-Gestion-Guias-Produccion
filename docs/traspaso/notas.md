@@ -2,6 +2,13 @@
 
 Cada persona o IA agrega una entrada al terminar una tarea. La más reciente va arriba.
 
+## 2026-11-06 · Codex · prototipo/PT-01-inicio-responsable
+
+- **Qué hice:** inicié PT-01 Inicio del Responsable en React + Vite + TypeScript. Incluye panel de solicitudes, tabla y envío simulado de solicitud de editable para ASC.
+- **Qué quedó pendiente:** definir RQ formales, modelo de datos y responsables del proyecto; conectar autenticación Microsoft y persistencia.
+- **Qué debe revisar la siguiente persona:** validar los textos, los tres indicadores y el formulario antes de continuar con las pantallas de ASC.
+- **Códigos involucrados:** RQ-001, RQ-002, PT-01.
+
 ## AAAA-MM-DD · [Nombre] · [Codex o Claude] · [Rama]
 
 - **Qué hice:**
