@@ -1,1 +1,3 @@
 RQ,Tipo,Descripción,Paso P,Criterio de aceptación,Se resuelve en,Prioridad,Versión del alcance,Estado
+RQ-001,Funcional,El Responsable consulta sus solicitudes recientes de editables,P-01,Carga estados de muestra y acciones para cada solicitud,PT-01,Alta,v1.0,Borrador
+RQ-002,Funcional,El Responsable registra una solicitud de editable para que ASC la revise,P-01,El formulario crea una solicitud con estado En revisión ASC y muestra aviso simulado de notificación,PT-01,Alta,v1.0,Borrador
