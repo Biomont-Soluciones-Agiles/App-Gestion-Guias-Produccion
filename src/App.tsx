@@ -2,57 +2,48 @@ import { FormEvent, useEffect, useState } from 'react';
 import { guardarSolicitud, listarSolicitudes, type Solicitud } from './datos/solicitudes';
 import { notificarAsc } from './simulado/notificarAsc';
 
-const guiaOpciones = ['GP-031 · Validación de línea', 'GP-032 · Preparación de materiales', 'GP-033 · Registro de lote'];
+const guias = ['GP-031 · Validación de línea', 'GP-032 · Preparación de materiales', 'GP-033 · Registro de lote'];
+type View = 'inicio' | 'guias' | 'ayuda';
 
 export function App() {
-  const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
-  const [modalAbierto, setModalAbierto] = useState(false);
-  const [guia, setGuia] = useState('');
-  const [aviso, setAviso] = useState('');
-
-  useEffect(() => { listarSolicitudes().then(setSolicitudes); }, []);
-
-  async function enviarSolicitud(event: FormEvent<HTMLFormElement>) {
+  const [logged, setLogged] = useState(false);
+  const [view, setView] = useState<View>('inicio');
+  const [rows, setRows] = useState<Solicitud[]>([]);
+  const [requestOpen, setRequestOpen] = useState(false);
+  const [ticketOpen, setTicketOpen] = useState(false);
+  const [guide, setGuide] = useState('');
+  const [reason, setReason] = useState('');
+  const [toast, setToast] = useState('');
+  useEffect(() => { listarSolicitudes().then(setRows); }, []);
+  const notify = (message: string) => { setToast(message); window.setTimeout(() => setToast(''), 4200); };
+  async function saveRequest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!guia) return;
-    const nuevaSolicitud = await guardarSolicitud(guia);
-    setSolicitudes((actuales) => [nuevaSolicitud, ...actuales]);
-    setModalAbierto(false);
-    setGuia('');
-    setAviso(notificarAsc());
+    if (!guide || !reason.trim()) return;
+    const created = await guardarSolicitud(guide);
+    setRows((current) => [created, ...current]); setRequestOpen(false); setGuide(''); setReason('');
+    notify(notificarAsc());
   }
-
+  if (!logged) return <Login onLogin={(event) => { event.preventDefault(); setLogged(true); }} onTicket={() => setTicketOpen(true)} ticketOpen={ticketOpen} closeTicket={() => setTicketOpen(false)} />;
+  const pending = rows.filter((row) => row.estado !== 'Editable disponible').length;
+  const received = rows.filter((row) => row.estado === 'Editable disponible').length;
   return <div className="app-shell">
-    <aside className="sidebar">
-      <div>
-        <div className="brand">Biomont</div><div className="brand-rule" />
-        <h1>Guías de Producción</h1>
-        <nav aria-label="Navegación principal">
-          <a className="nav-item active" href="#inicio"><span>⌂</span>Inicio</a>
-          <a className="nav-item" href="#guias"><span>▱</span>Guías compartidas</a>
-          <a className="nav-item" href="#ayuda"><span>?</span>Ayuda</a>
-        </nav>
-      </div>
-      <button className="profile" type="button"><span className="avatar">M</span><span><strong>María</strong><small>RESPONSABLE</small></span><span className="chevron">⌄</span></button>
-    </aside>
-    <main>
-      <header className="topbar"><p>Buenos días, María</p><button className="notification" type="button" aria-label="Notificaciones">♧<i /></button></header>
-      <section className="content" id="inicio">
-        <div className="hero"><div className="hero-copy"><span className="hero-accent" /><div><h2>Gestiona tus guías de producción</h2><p>Solicita a ASC el archivo editable que necesitas para iniciar o actualizar una guía.</p><button className="primary-button" type="button" onClick={() => setModalAbierto(true)}>＋ Nueva solicitud de editable</button></div></div></div>
-        {aviso && <div className="simulation-notice" role="status">{aviso}</div>}
-        <section className="metrics" aria-label="Resumen de solicitudes">
-          <Metric icon="◷" title="Solicitudes en curso" subtitle="Pendientes de ASC" value="5" />
-          <Metric icon="✓" title="Editables recibidos" subtitle="Aprobadas y enviadas" value="2" />
-          <Metric rejected icon="×" title="Solicitudes rechazadas" subtitle="Rechazadas por ASC" value="1" />
-        </section>
-        <section className="requests"><div className="section-heading"><h2>Mis solicitudes recientes</h2><button className="text-button" type="button">Ver todas</button></div><div className="table-wrap"><table><thead><tr><th>Guía</th><th>Área</th><th>Estado</th><th>Fecha</th><th>Acción</th></tr></thead><tbody>{solicitudes.map((solicitud) => <tr key={solicitud.id}><td>{solicitud.guia}</td><td>{solicitud.area}</td><td><span className={`status ${claseEstado(solicitud.estado)}`}>{solicitud.estado}</span></td><td>{solicitud.fecha}</td><td><button className="outline-button" type="button">{solicitud.estado === 'Borrador' ? 'Continuar' : solicitud.estado === 'Editable disponible' ? 'Abrir' : 'Ver detalle'}</button></td></tr>)}</tbody></table></div></section>
-      </section>
+    <aside className="sidebar"><div><div className="brand-lockup"><span className="brand-oval">Biomont</span><span className="brand-app">Guías de<br />Producción</span></div><div className="sidebar-rule" /><nav className="navigation"><Nav active={view === 'inicio'} icon="⌂" click={() => setView('inicio')}>Inicio</Nav><Nav active={view === 'guias'} icon="▱" click={() => setView('guias')}>Guías compartidas</Nav><Nav active={view === 'ayuda'} icon="?" click={() => setView('ayuda')}>Ayuda</Nav></nav></div><button className="profile" type="button" onClick={() => notify('Perfil de María Rodríguez · Responsable')}><span className="avatar">MR</span><span><strong>María Rodríguez</strong><small>RESPONSABLE</small></span><span className="profile-more">···</span></button></aside>
+    <main className="dashboard"><header className="topbar"><div><p className="breadcrumb">GESTIÓN DE PRODUCCIÓN</p><h1>{view === 'inicio' ? 'Inicio' : view === 'guias' ? 'Guías compartidas' : 'Centro de ayuda'}</h1></div><div className="top-actions"><button className="icon-button" type="button" onClick={() => notify('No tienes notificaciones nuevas.')} aria-label="Notificaciones">♧<i /></button><button className="user-chip" type="button">MR</button></div></header>
+      <div className="page-content">{view === 'inicio' && <><section className="welcome-panel"><div><p className="eyebrow">PANEL DEL RESPONSABLE</p><h2>Gestiona tus guías de producción</h2><p>Solicita editables a ASC, consulta el avance y mantén tus documentos bajo control.</p></div><button className="primary-button" type="button" onClick={() => setRequestOpen(true)}>＋ Nueva solicitud</button></section>
+      <section className="metrics"><Metric icon="◷" value={pending} title="Solicitudes en curso" detail="Pendientes de respuesta ASC" /><Metric icon="✓" value={received} title="Editables recibidos" detail="Disponibles para trabajar" /><Metric icon="×" value={1} title="Solicitudes rechazadas" detail="Requieren una nueva solicitud" critical /></section>
+      <section className="requests card"><div className="section-heading"><div><p className="eyebrow">SEGUIMIENTO</p><h2>Mis solicitudes recientes</h2></div><button className="quiet-button" type="button" onClick={() => notify('Mostrando las solicitudes disponibles.')}>Ver todas →</button></div><div className="table-wrap"><table><thead><tr><th>Guía</th><th>Área</th><th>Estado</th><th>Última actualización</th><th /></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td><strong>{row.guia}</strong><small>{row.id}</small></td><td>{row.area}</td><td><Status value={row.estado} /></td><td>{row.fecha}</td><td><button className="row-action" type="button" onClick={() => notify('Abriendo ' + row.guia)}>{row.estado === 'Editable disponible' ? 'Abrir' : 'Ver detalle'}</button></td></tr>)}</tbody></table></div></section></>}
+      {view === 'guias' && <Empty icon="▱" title="Guías compartidas" text="Aquí aparecerán los editables y versiones que ASC comparta contigo." action={() => setRequestOpen(true)} label="Solicitar un editable" />}
+      {view === 'ayuda' && <Empty icon="?" title="¿Necesitas ayuda?" text="Registra un ticket y soporte podrá dar seguimiento a tu caso." action={() => setTicketOpen(true)} label="Crear ticket" secondary />}</div>
+      {toast && <div className="toast" role="status"><span>✓</span>{toast}<button type="button" onClick={() => setToast('')}>×</button></div>}
     </main>
-    {modalAbierto && <div className="modal-backdrop" role="presentation"><form className="modal" onSubmit={enviarSolicitud}><div className="dialog-header"><div><p className="eyebrow">NUEVA SOLICITUD</p><h2>Solicitar editable a ASC</h2></div><button className="close" onClick={() => setModalAbierto(false)} type="button">×</button></div><p className="dialog-copy">Completa la información para enviar la solicitud al equipo de Aseguramiento de la Calidad.</p><label>Guía de producción<select value={guia} onChange={(event) => setGuia(event.target.value)} required><option value="">Selecciona una guía</option>{guiaOpciones.map((opcion) => <option key={opcion}>{opcion}</option>)}</select></label><label>Motivo de la solicitud<textarea rows={4} required placeholder="Describe la actualización o el uso previsto del editable" /></label><div className="dialog-actions"><button className="secondary-button" onClick={() => setModalAbierto(false)} type="button">Cancelar</button><button className="primary-button" type="submit">Enviar a ASC</button></div></form></div>}
+    {requestOpen && <Modal title="Solicitar editable a ASC" close={() => setRequestOpen(false)}><form className="form-stack" onSubmit={saveRequest}><p className="modal-intro">La solicitud será enviada al equipo de Aseguramiento de la Calidad para su revisión.</p><label>Guía de producción<select value={guide} onChange={(event) => setGuide(event.target.value)} required><option value="">Selecciona una guía</option>{guias.map((item) => <option key={item}>{item}</option>)}</select></label><label>Motivo de la solicitud<textarea rows={4} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Describe la actualización o uso previsto del editable" required /></label><div className="dialog-actions"><button className="secondary-button" type="button" onClick={() => setRequestOpen(false)}>Cancelar</button><button className="primary-button" type="submit">Enviar a ASC</button></div></form></Modal>}
+    {ticketOpen && <Ticket close={() => setTicketOpen(false)} done={() => { setTicketOpen(false); notify('Ticket registrado. Soporte se comunicará contigo.'); }} />}
   </div>;
 }
-
-function Metric({ icon, title, subtitle, value, rejected = false }: { icon: string; title: string; subtitle: string; value: string; rejected?: boolean }) {
-  return <article className={`metric-card ${rejected ? 'rejected' : ''}`}><span className="metric-icon">{icon}</span><div><h3>{title}</h3><p>{subtitle}</p><strong>{value}</strong></div></article>;
-}
-function claseEstado(estado: Solicitud['estado']) { return estado === 'En revisión ASC' ? 'review' : estado === 'Editable disponible' ? 'available' : 'draft'; }
+function Login({ onLogin, onTicket, ticketOpen, closeTicket }: { onLogin: (event: FormEvent<HTMLFormElement>) => void; onTicket: () => void; ticketOpen: boolean; closeTicket: () => void }) { return <div className="login-page"><section className="login-story"><div className="story-brand">Biomont</div><div className="story-copy"><p>GESTIÓN DE PRODUCCIÓN</p><h1>Guías que llevan la producción adelante.</h1><span /><strong>Centraliza la revisión, aprobación y distribución de tus guías de producción.</strong></div><div className="story-footer">DOCUMENTACIÓN · TRAZABILIDAD · CALIDAD</div></section><section className="login-side"><div className="login-card"><div className="login-brand">Biomont</div><div className="login-divider" /><p className="eyebrow">PLATAFORMA DE PRODUCCIÓN</p><h2>Bienvenido</h2><p className="login-subtitle">Ingresa con tus credenciales corporativas.</p><form className="login-form" onSubmit={onLogin}><label>Usuario corporativo<input type="email" placeholder="nombre@biomont.com" required /></label><label>Contraseña<input type="password" placeholder="••••••••" required /></label><button className="primary-button login-button" type="submit">Ingresar <span>→</span></button></form><p className="secure-note">◈ Acceso seguro para colaboradores Biomont</p><button className="ticket-link" type="button" onClick={onTicket}>¿Encontraste una falla? Ingresa un ticket por aquí.</button></div></section>{ticketOpen && <Ticket close={closeTicket} done={closeTicket} />}</div>; }
+function Nav({ active, icon, click, children }: { active: boolean; icon: string; click: () => void; children: string }) { return <button className={'nav-item ' + (active ? 'active' : '')} type="button" onClick={click}><span>{icon}</span>{children}</button>; }
+function Metric({ icon, value, title, detail, critical = false }: { icon: string; value: number; title: string; detail: string; critical?: boolean }) { return <article className={'metric-card ' + (critical ? 'critical' : '')}><span className="metric-icon">{icon}</span><div><p>{title}</p><strong>{value}</strong><small>{detail}</small></div></article>; }
+function Status({ value }: { value: Solicitud['estado'] }) { const tone = value === 'En revisión ASC' ? 'review' : value === 'Editable disponible' ? 'available' : 'draft'; return <span className={'status ' + tone}>{value}</span>; }
+function Empty({ icon, title, text, action, label, secondary = false }: { icon: string; title: string; text: string; action: () => void; label: string; secondary?: boolean }) { return <section className="card empty-state"><span>{icon}</span><h2>{title}</h2><p>{text}</p><button className={secondary ? 'secondary-button' : 'primary-button'} type="button" onClick={action}>{label}</button></section>; }
+function Modal({ title, children, close }: { title: string; children: React.ReactNode; close: () => void }) { return <div className="modal-backdrop"><section className="modal" role="dialog" aria-modal="true"><header><div><p className="eyebrow">GESTIÓN DE PRODUCCIÓN</p><h2>{title}</h2></div><button className="close-button" type="button" onClick={close}>×</button></header>{children}</section></div>; }
+function Ticket({ close, done }: { close: () => void; done: () => void }) { return <Modal title="Registrar ticket" close={close}><form className="form-stack" onSubmit={(event) => { event.preventDefault(); done(); }}><p className="modal-intro">Registra el inconveniente para que soporte pueda revisarlo.</p><label>Asunto<input required placeholder="Ej. No puedo abrir una guía" /></label><label>Detalle<textarea required rows={4} placeholder="Describe el inconveniente" /></label><div className="dialog-actions"><button className="secondary-button" type="button" onClick={close}>Cancelar</button><button className="primary-button" type="submit">Registrar ticket</button></div></form></Modal>; }
