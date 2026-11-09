@@ -69,59 +69,22 @@ export default function ApplicantPanel({ requests, setRequests }) {
 function NewRequestModal({ onClose, onSubmit }) {
   const [formData, setFormData] = useState({ guide: '', area: '', type: 'Última versión de la guía', reason: '', justification: '' });
   return (
-    <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
-        <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
-          <h3 className="text-lg font-bold text-slate-800">Nueva Solicitud</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><XCircle size={20} /></button>
-        </div>
-        <div className="p-6 overflow-y-auto">
-          <form id="new-req-form" className="space-y-4" onSubmit={(e) => { e.preventDefault(); onSubmit(formData); }}>
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Nombre/Código de la Guía</label>
-              <input required type="text" className="w-full border border-slate-300 rounded-md p-2.5 text-sm outline-none focus:border-blue-500" value={formData.guide} onChange={e => setFormData({...formData, guide: e.target.value})} />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Área Solicitante</label>
-              <select required className="w-full border border-slate-300 rounded-md p-2.5 text-sm outline-none focus:border-blue-500" value={formData.area} onChange={e => setFormData({...formData, area: e.target.value})}>
-                <option value="">Seleccione un área...</option>
-                <option value="Acondicionado">Acondicionado</option>
-                <option value="Desarrollo Farmacéutico - DF">Desarrollo Farmacéutico - DF</option>
-                <option value="Planta">Planta</option>
-                <option value="Validación - VOT">Validación - VOT</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Tipo de Guía</label>
-              <div className="flex gap-4">
-                <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
-                  <input type="radio" className="text-blue-600" checked={formData.type === 'Última versión de la guía'} onChange={() => setFormData({...formData, type: 'Última versión de la guía'})} /> Última versión
-                </label>
-                <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
-                  <input type="radio" className="text-blue-600" checked={formData.type === 'Guía de referencia para producto nuevo'} onChange={() => setFormData({...formData, type: 'Guía de referencia para producto nuevo'})} /> Guía de referencia
-                </label>
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Motivo</label>
-              <select required className="w-full border border-slate-300 rounded-md p-2.5 text-sm outline-none focus:border-blue-500" value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value})}>
-                <option value="">Seleccione motivo...</option>
-                <option value="CAPA">CAPA</option>
-                <option value="Control de Cambios - CC">Control de Cambios - CC</option>
-                <option value="Ajustes Menores">Ajustes Menores</option>
-                <option value="Referencia de creación">Referencia de creación</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Justificación</label>
-              <textarea required rows="3" className="w-full border border-slate-300 rounded-md p-2.5 text-sm outline-none focus:border-blue-500 resize-none" value={formData.justification} onChange={e => setFormData({...formData, justification: e.target.value})}></textarea>
-            </div>
-          </form>
-        </div>
-        <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-3">
-          <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200 rounded-md">Cancelar</button>
-          <button type="submit" form="new-req-form" className="px-4 py-2 text-sm font-medium text-white bg-blue-700 hover:bg-blue-800 rounded-md">Enviar Solicitud</button>
-        </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+      <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
+        <header className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
+          <div><h3 className="text-[22px] font-bold leading-tight text-slate-900">Nueva Solicitud de Editable</h3><p className="mt-1 text-sm text-slate-500">Complete los datos para iniciar el flujo de solicitud.</p></div>
+          <button onClick={onClose} aria-label="Cerrar" className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-slate-600"><XCircle size={22} /></button>
+        </header>
+        <form id="new-req-form" className="space-y-7 overflow-y-auto px-6 py-7" onSubmit={(event) => { event.preventDefault(); onSubmit(formData); }}>
+          <div><label className="mb-2 block text-sm font-semibold text-slate-700">Nombre o Código de la Guía <span className="text-red-600">*</span></label><input required type="text" placeholder="Ej. Guía de Envasado Lote X" className="w-full rounded-lg border border-slate-300 px-3.5 py-3 text-sm outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100" value={formData.guide} onChange={(event) => setFormData({ ...formData, guide: event.target.value })} /></div>
+          <div className="grid gap-6 sm:grid-cols-2">
+            <div><label className="mb-2 block text-sm font-semibold text-slate-700">Área Solicitante <span className="text-red-600">*</span></label><select required className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-3 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" value={formData.area} onChange={(event) => setFormData({ ...formData, area: event.target.value })}><option value="">Seleccione un área...</option><option value="Acondicionado">Acondicionado</option><option value="Desarrollo Farmacéutico - DF">Desarrollo Farmacéutico - DF</option><option value="Planta">Planta</option><option value="Validación - VOT">Validación - VOT</option></select></div>
+            <div><label className="mb-2 block text-sm font-semibold text-slate-700">Motivo de la Solicitud <span className="text-red-600">*</span></label><select required className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-3 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" value={formData.reason} onChange={(event) => setFormData({ ...formData, reason: event.target.value })}><option value="">Seleccione un motivo...</option><option value="CAPA">CAPA</option><option value="Control de Cambios - CC">Control de Cambios - CC</option><option value="Ajustes Menores">Ajustes Menores</option><option value="Referencia de creación">Referencia de creación</option></select></div>
+          </div>
+          <div><p className="mb-3 text-sm font-semibold text-slate-700">Tipo de Guía <span className="text-red-600">*</span></p><div className="flex flex-wrap gap-x-7 gap-y-3"><label className="flex cursor-pointer items-center gap-2 text-sm text-slate-600"><input type="radio" className="h-4 w-4 accent-blue-600" checked={formData.type === 'Última versión de la guía'} onChange={() => setFormData({ ...formData, type: 'Última versión de la guía' })} />Última versión de la guía</label><label className="flex cursor-pointer items-center gap-2 text-sm text-slate-600"><input type="radio" className="h-4 w-4 accent-blue-600" checked={formData.type === 'Guía de referencia para producto nuevo'} onChange={() => setFormData({ ...formData, type: 'Guía de referencia para producto nuevo' })} />Guía de referencia (Producto nuevo)</label></div></div>
+          <div><label className="mb-2 block text-sm font-semibold text-slate-700">Justificación detallada <span className="text-red-600">*</span></label><textarea required rows="4" placeholder="Explique brevemente el porqué de la solicitud..." className="w-full resize-none rounded-lg border border-slate-300 px-3.5 py-3 text-sm outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100" value={formData.justification} onChange={(event) => setFormData({ ...formData, justification: event.target.value })} /></div>
+        </form>
+        <footer className="flex justify-end gap-3 border-t border-slate-100 px-6 py-4"><button type="button" onClick={onClose} className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancelar</button><button type="submit" form="new-req-form" className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700">⌁&nbsp; Enviar Solicitud</button></footer>
       </div>
     </div>
   );
