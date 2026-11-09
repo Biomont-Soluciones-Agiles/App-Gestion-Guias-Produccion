@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import LoginScreen from './components/LoginScreen';
-import TopNav from './components/TopNav';
+import SideNav from './components/SideNav';
 import ApplicantPanel from './components/ApplicantPanel';
 import ASCPanel from './components/ASCPanel';
 
@@ -13,21 +13,15 @@ const mockRequests = [
 export default function App() {
   const [user, setUser] = useState(null);
   const [requests, setRequests] = useState(mockRequests);
-
-  const login = (role) => setUser(role);
-  const logout = () => setUser(null);
-
-  if (!user) return <LoginScreen onLogin={login} />;
-
-  return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
-      <TopNav currentRole={user} onRoleChange={setUser} onLogout={logout} />
-      <main className="flex-grow p-8">
-        {user === 'Solicitante' ? 
-          <ApplicantPanel requests={requests} setRequests={setRequests} /> : 
-          <ASCPanel requests={requests} setRequests={setRequests} />
-        }
-      </main>
-    </div>
-  );
+  if (!user) return <LoginScreen onLogin={setUser} />;
+  const isAsc = user === 'ASC';
+  return <div className="min-h-screen bg-slate-50 flex">
+    <SideNav currentRole={user} onLogout={() => setUser(null)} />
+    <main className="min-w-0 flex-1">
+      <header className="flex h-[88px] items-center border-b border-slate-200 bg-white px-10">
+        <div><p className="text-[10px] font-bold uppercase tracking-[.14em] text-blue-700">Gestión de producción</p><h1 className="mt-1 text-xl font-bold text-slate-800">{isAsc ? 'Solicitudes por revisar' : 'Mis solicitudes'}</h1></div>
+      </header>
+      <div className="p-8 lg:p-10">{isAsc ? <ASCPanel requests={requests} setRequests={setRequests} /> : <ApplicantPanel requests={requests} setRequests={setRequests} />}</div>
+    </main>
+  </div>;
 }
