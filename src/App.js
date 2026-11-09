@@ -16,7 +16,7 @@ export default function App() {
   if (!user) return <LoginScreen onLogin={setUser} />;
   const isAsc = user === 'ASC';
   return <div className="min-h-screen bg-slate-50 flex">
-    <SideNav currentRole={user} onRoleChange={setUser} onLogout={() => setUser(null)} />
+    <SideNav currentRole={user} onLogout={() => setUser(null)} />
     <main className="min-w-0 flex-1">
       <header className="flex h-[88px] items-center border-b border-slate-200 bg-white px-10">
         <div><p className="text-[10px] font-bold uppercase tracking-[.14em] text-blue-700">Gestión de producción</p><h1 className="mt-1 text-xl font-bold text-slate-800">{isAsc ? 'Solicitudes por revisar' : 'Mis solicitudes'}</h1></div>
