@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ClipboardList, FileCheck2, HelpCircle, LogOut, Settings, ShieldCheck, UserRound } from 'lucide-react';
 
-export default function SideNav({ currentRole, onRoleChange, onLogout }) {
+export default function SideNav({ currentRole, onLogout }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
   useEffect(() => {
@@ -33,7 +33,7 @@ export default function SideNav({ currentRole, onRoleChange, onLogout }) {
         <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold text-slate-800">{userName}</p><p className="text-xs text-slate-500">{userRole}</p></div>
         <button aria-label="Configuración" onClick={() => setMenuOpen(!menuOpen)} className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-800"><Settings size={18} /></button>
       </div>
-      <div className="mt-4 px-2"><label className="text-[10px] font-bold uppercase tracking-[.11em] text-slate-400">Vista del prototipo</label><select value={currentRole} onChange={(event) => onRoleChange(event.target.value)} className="mt-1.5 w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-blue-500"><option value="Solicitante">Solicitante</option><option value="ASC">ASC</option></select></div>
+
     </div>
   </aside>;
 }
