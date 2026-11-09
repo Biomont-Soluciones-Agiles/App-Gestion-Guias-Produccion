@@ -1,3 +1,0 @@
-PT,Nombre,Recorrido,RQ cubiertos,Perfiles que la usan,Estado
-PT-00,Acceso,Ingreso con credenciales y registro de ticket simulado,RQ-003,Colaborador,En prototipo
-PT-01,Inicio del Responsable,Consulta solicitudes y crea una solicitud de editable,RQ-001; RQ-002,Responsable,En prototipo

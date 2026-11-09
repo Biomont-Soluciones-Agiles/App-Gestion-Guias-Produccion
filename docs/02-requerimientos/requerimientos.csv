@@ -1,4 +1,0 @@
-RQ,Tipo,Descripción,Paso P,Criterio de aceptación,Se resuelve en,Prioridad,Versión del alcance,Estado
-RQ-001,Funcional,El Responsable solicita a ASC el editable de una guía de producción,P-01,Puede seleccionar una guía e indicar el motivo; la solicitud queda pendiente de revisión ASC,PT-01,Alta,v1.0,Borrador
-RQ-002,Funcional,ASC revisa una solicitud de editable,P-02,ASC solo ve solicitudes pendientes y puede compartir una ubicación de carpeta o rechazar indicando el motivo,PT-02,Alta,v1.0,Borrador
-RQ-003,Funcional,El colaborador ingresa seleccionando Responsable o ASC con la contraseña de prueba password,P-00,El acceso valida el rol y contraseña antes de mostrar la pantalla específica del rol,PT-00,Alta,v1.0,Borrador
