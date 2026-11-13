@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Plus, Eye, XCircle, Folder, Download } from 'lucide-react';
+import { Plus, Eye, XCircle, FilePenLine, Save } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 
 export default function ApplicantPanel({ requests, setRequests }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [viewModalData, setViewModalData] = useState(null);
+  const [editingGuide, setEditingGuide] = useState(null);
 
   const handleSubmit = (newReq) => {
     const request = {
@@ -61,7 +62,8 @@ export default function ApplicantPanel({ requests, setRequests }) {
         </table>
       </div>
       {isModalOpen && <NewRequestModal onClose={() => setIsModalOpen(false)} onSubmit={handleSubmit} />}
-      {viewModalData && <ViewRequestModal data={viewModalData} onClose={() => setViewModalData(null)} />}
+      {viewModalData && <ViewRequestModal data={viewModalData} onClose={() => setViewModalData(null)} onEdit={(request) => { setViewModalData(null); setEditingGuide(request); }} />}
+      {editingGuide && <GuideEditorModal data={editingGuide} onClose={() => setEditingGuide(null)} />}
     </div>
   );
 }
@@ -90,7 +92,7 @@ function NewRequestModal({ onClose, onSubmit }) {
   );
 }
 
-function ViewRequestModal({ data, onClose }) {
+function ViewRequestModal({ data, onClose, onEdit }) {
   return (
     <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden">
@@ -113,8 +115,9 @@ function ViewRequestModal({ data, onClose }) {
           </div>
           {data.status === 'Aprobado' && (
             <div className="border border-emerald-200 bg-emerald-50 rounded-lg p-4">
-              <h4 className="text-sm font-bold text-emerald-800 mb-2 flex items-center gap-2"><Folder size={16} /> Documentos y Carpeta</h4>
-              <button className="w-full bg-emerald-600 text-white py-2 rounded text-sm font-medium flex items-center justify-center gap-2"><Download size={16} /> Acceder a Carpeta Compartida</button>
+              <h4 className="text-sm font-bold text-emerald-800 mb-2 flex items-center gap-2"><FilePenLine size={16} /> Editable disponible</h4>
+              <p className="mb-3 text-xs text-emerald-800">La guía se edita dentro de la plataforma. No hay descarga ni exportación habilitada.</p>
+              <button onClick={() => onEdit(data)} className="w-full bg-emerald-600 text-white py-2 rounded text-sm font-medium flex items-center justify-center gap-2"><FilePenLine size={16} /> Editar guía</button>
             </div>
           )}
           {data.status === 'Rechazado' && data.rejectReason && (
@@ -125,4 +128,24 @@ function ViewRequestModal({ data, onClose }) {
       </div>
     </div>
   );
+}
+
+function GuideEditorModal({ data, onClose }) {
+  const [sheet, setSheet] = useState('1');
+  const [rows, setRows] = useState([
+    ['GUÍA DE FABRICACIÓN', '', 'Código', data.id],
+    ['Guía', data.guide, 'Versión', '01'],
+    ['Área', data.area, 'Fecha de autorización', 'Pendiente'],
+    ['Paso', 'Instrucción', 'Registro', ''],
+    ['1.1', 'Verificar que el área se encuentre liberada y limpia.', '', ''],
+    ['1.2', 'Registrar las condiciones de inicio de la operación.', '', ''],
+  ]);
+  const updateCell = (rowIndex, columnIndex, value) => setRows(current => current.map((row, r) => r === rowIndex ? row.map((cell, c) => c === columnIndex ? value : cell) : row));
+  return <div className="fixed inset-0 z-[60] bg-slate-950/60 p-3 sm:p-6">
+    <div className="mx-auto flex h-full max-w-6xl flex-col overflow-hidden rounded-xl bg-slate-100 shadow-2xl">
+      <header className="flex flex-wrap items-center justify-between gap-4 border-b bg-white px-5 py-4"><div><p className="text-[10px] font-bold tracking-widest text-red-600">EDICIÓN INTERNA · {data.id}</p><h3 className="mt-1 text-base font-bold text-slate-800">{data.guide}</h3><p className="mt-1 text-xs text-slate-500">Solo edición dentro de la plataforma · No hay descarga ni exportación habilitada</p></div><div className="flex gap-2"><button onClick={onClose} className="rounded-lg border bg-white px-4 py-2 text-sm font-semibold text-slate-700">Cerrar</button><button onClick={() => alert('Cambios guardados temporalmente en este prototipo.')} className="flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white"><Save size={15}/> Guardar cambios</button></div></header>
+      <div className="flex gap-1 overflow-x-auto px-4 pt-3">{['1','2','3','4','5','6','HISTORIAL'].map(item => <button key={item} onClick={() => setSheet(item)} className={`whitespace-nowrap rounded-t-md border px-3 py-2 text-xs font-semibold ${sheet === item ? 'border-slate-300 bg-white text-blue-700' : 'border-transparent text-slate-500'}`}>{item === 'HISTORIAL' ? 'Historial de cambio' : `Hoja ${item}`}</button>)}</div>
+      <div className="m-4 flex-1 overflow-auto rounded-lg border bg-white p-4"><div className="mb-3 border border-slate-300 bg-sky-50 py-2 text-center text-sm font-bold text-slate-800">{sheet === '1' ? 'GUÍA DE FABRICACIÓN' : sheet === 'HISTORIAL' ? 'HISTORIAL DE CAMBIO' : `GUÍA DE FABRICACIÓN · HOJA ${sheet}`}</div><table className="min-w-full border-collapse text-sm"> <tbody>{rows.map((row, r) => <tr key={r}>{row.map((cell, c) => <td key={c} className={`min-w-[130px] border border-slate-300 p-0 ${r === 0 || r === 3 ? 'bg-slate-200 font-bold' : ''}`}><input value={cell} onChange={(event) => updateCell(r, c, event.target.value)} className="w-full bg-transparent px-3 py-2 outline-none focus:bg-blue-50" /></td>)}</tr>)}</tbody></table></div>
+    </div>
+  </div>;
 }
