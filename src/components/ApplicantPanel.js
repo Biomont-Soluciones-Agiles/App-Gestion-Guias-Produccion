@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Eye, XCircle, FilePenLine, Save } from 'lucide-react';
+import { Plus, Eye, XCircle, FileEdit, Save } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 
 export default function ApplicantPanel({ requests, setRequests }) {
@@ -115,9 +115,9 @@ function ViewRequestModal({ data, onClose, onEdit }) {
           </div>
           {data.status === 'Aprobado' && (
             <div className="border border-emerald-200 bg-emerald-50 rounded-lg p-4">
-              <h4 className="text-sm font-bold text-emerald-800 mb-2 flex items-center gap-2"><FilePenLine size={16} /> Editable disponible</h4>
+              <h4 className="text-sm font-bold text-emerald-800 mb-2 flex items-center gap-2"><FileEdit size={16} /> Editable disponible</h4>
               <p className="mb-3 text-xs text-emerald-800">La guía se edita dentro de la plataforma. No hay descarga ni exportación habilitada.</p>
-              <button onClick={() => onEdit(data)} className="w-full bg-emerald-600 text-white py-2 rounded text-sm font-medium flex items-center justify-center gap-2"><FilePenLine size={16} /> Editar guía</button>
+              <button onClick={() => onEdit(data)} className="w-full bg-emerald-600 text-white py-2 rounded text-sm font-medium flex items-center justify-center gap-2"><FileEdit size={16} /> Editar guía</button>
             </div>
           )}
           {data.status === 'Rechazado' && data.rejectReason && (
