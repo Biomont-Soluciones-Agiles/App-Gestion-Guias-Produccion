@@ -2,6 +2,13 @@ import React, { useState } from 'react';
 import { Plus, Eye, XCircle, FileEdit, Save } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 
+const products = [
+  ['Sólido', 'Fabricación', 'UPROFIX 3.6 TAB', 'F'], ['Sólido', 'Acondicionado', 'ORALMEC PLUS', 'F'],
+  ['Polvo', 'Fabricación', 'RACION - Mezcla Final', 'A'], ['Inyectable', 'Fabricación', 'CALCIN F', 'A'],
+  ['Líquido', 'Fabricación', '5X1DORADO', 'A'], ['Solución Tópica', 'Fabricación', 'RIVOLTA 12%', 'F'],
+  ['Semisólido', 'Fabricación', 'TIOPENAR GEL', 'A'],
+].map(([line, phase, product, classification]) => ({ line, phase, product, classification }));
+
 export default function ApplicantPanel({ requests, setRequests }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [viewModalData, setViewModalData] = useState(null);
@@ -69,7 +76,12 @@ export default function ApplicantPanel({ requests, setRequests }) {
 }
 
 function NewRequestModal({ onClose, onSubmit }) {
-  const [formData, setFormData] = useState({ guide: '', area: '', type: 'Última versión de la guía', reason: '', justification: '' });
+  const [formData, setFormData] = useState({ productIndex: '', guide: '', area: '', type: 'Última versión de la guía', reason: '', justification: '' });
+  const selectedProduct = formData.productIndex === '' ? null : products[Number(formData.productIndex)];
+  const selectProduct = (index) => {
+    const selected = products[Number(index)];
+    setFormData({ ...formData, productIndex: index, guide: selected ? `${selected.line} ${selected.product} ${selected.phase} - ${selected.classification}` : '' });
+  };
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
       <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
@@ -78,7 +90,8 @@ function NewRequestModal({ onClose, onSubmit }) {
           <button onClick={onClose} aria-label="Cerrar" className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-slate-600"><XCircle size={22} /></button>
         </header>
         <form id="new-req-form" className="space-y-7 overflow-y-auto px-6 py-7" onSubmit={(event) => { event.preventDefault(); onSubmit(formData); }}>
-          <div><label className="mb-2 block text-sm font-semibold text-slate-700">Nombre o Código de la Guía <span className="text-red-600">*</span></label><input required type="text" placeholder="Ej. Guía de Envasado Lote X" className="w-full rounded-lg border border-slate-300 px-3.5 py-3 text-sm outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100" value={formData.guide} onChange={(event) => setFormData({ ...formData, guide: event.target.value })} /></div>
+          <div><label className="mb-2 block text-sm font-semibold text-slate-700">Producto de la guía <span className="text-red-600">*</span></label><select required className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-3 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" value={formData.productIndex} onChange={(event) => selectProduct(event.target.value)}><option value="">Seleccione un producto...</option>{products.map((item, index) => <option key={item.product} value={index}>{item.line} · {item.product} · {item.phase}</option>)}</select>{selectedProduct && <p className="mt-2 text-xs text-slate-500">Guía: {formData.guide}</p>}</div>
+          <div className="grid gap-4 sm:grid-cols-3"><div><label className="mb-2 block text-sm font-semibold text-slate-700">Línea</label><input readOnly value={selectedProduct?.line || ''} placeholder="Automático" className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-3 text-sm text-slate-600" /></div><div><label className="mb-2 block text-sm font-semibold text-slate-700">Producto</label><input readOnly value={selectedProduct?.product || ''} placeholder="Automático" className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-3 text-sm text-slate-600" /></div><div><label className="mb-2 block text-sm font-semibold text-slate-700">Fase</label><input readOnly value={selectedProduct?.phase || ''} placeholder="Automático" className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-3 text-sm text-slate-600" /></div></div>
           <div className="grid gap-6 sm:grid-cols-2">
             <div><label className="mb-2 block text-sm font-semibold text-slate-700">Área Solicitante <span className="text-red-600">*</span></label><select required className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-3 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" value={formData.area} onChange={(event) => setFormData({ ...formData, area: event.target.value })}><option value="">Seleccione un área...</option><option value="Acondicionado">Acondicionado</option><option value="Desarrollo Farmacéutico - DF">Desarrollo Farmacéutico - DF</option><option value="Planta">Planta</option><option value="Validación - VOT">Validación - VOT</option></select></div>
             <div><label className="mb-2 block text-sm font-semibold text-slate-700">Motivo de la Solicitud <span className="text-red-600">*</span></label><select required className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-3 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" value={formData.reason} onChange={(event) => setFormData({ ...formData, reason: event.target.value })}><option value="">Seleccione un motivo...</option><option value="CAPA">CAPA</option><option value="Control de Cambios - CC">Control de Cambios - CC</option><option value="Ajustes Menores">Ajustes Menores</option><option value="Referencia de creación">Referencia de creación</option></select></div>
