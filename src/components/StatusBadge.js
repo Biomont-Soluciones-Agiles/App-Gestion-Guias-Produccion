@@ -1,10 +1,5 @@
 import React from 'react';
-
-export default function StatusBadge({ status }) {
-  const styles = {
-    Pendiente: 'bg-amber-100 text-amber-700 border-amber-200',
-    Aprobado: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-    Rechazado: 'bg-red-100 text-red-700 border-red-200'
-  };
-  return <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${styles[status]}`}>{status}</span>;
-}
+const labels = { PENDIENTE_ASC_INICIAL: 'Pendiente de ASC', EN_EDICION: 'En edición', PENDIENTE_JEFATURA: 'Pendiente de Jefatura', OBSERVADA_JEFATURA: 'Observada por Jefatura', PENDIENTE_ASC_TECNICA: 'Revisión técnica ASC', OBSERVADA_ASC_TECNICA: 'Observada por ASC', APROBADA_TECNICA: 'Aprobada técnicamente', RECHAZADA_ASC_INICIAL: 'Rechazada', CANCELADA: 'Cancelada' };
+const colors = { PENDIENTE_ASC_INICIAL: 'bg-amber-100 text-amber-800 border-amber-200', EN_EDICION: 'bg-blue-100 text-blue-800 border-blue-200', PENDIENTE_JEFATURA: 'bg-violet-100 text-violet-800 border-violet-200', OBSERVADA_JEFATURA: 'bg-orange-100 text-orange-800 border-orange-200', PENDIENTE_ASC_TECNICA: 'bg-indigo-100 text-indigo-800 border-indigo-200', OBSERVADA_ASC_TECNICA: 'bg-orange-100 text-orange-800 border-orange-200', APROBADA_TECNICA: 'bg-emerald-100 text-emerald-800 border-emerald-200', RECHAZADA_ASC_INICIAL: 'bg-red-100 text-red-800 border-red-200', CANCELADA: 'bg-slate-200 text-slate-700 border-slate-300' };
+export const stageLabel = stage => labels[stage] || stage;
+export default function StatusBadge({ status }) { return <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${colors[status] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>{stageLabel(status)}</span>; }
