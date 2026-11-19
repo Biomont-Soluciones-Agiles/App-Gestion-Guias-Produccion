@@ -1,7 +1,174 @@
-import React, { useState } from 'react'; import { Eye, Plus, Send, X } from 'lucide-react'; import StatusBadge from './StatusBadge'; import FilterBar, { useFilters } from './FilterBar';
-const active = ['PENDIENTE_ASC_INICIAL','EN_EDICION','PENDIENTE_JEFATURA','OBSERVADA_JEFATURA','PENDIENTE_ASC_TECNICA','OBSERVADA_ASC_TECNICA'];
-export default function ApplicantPanel({ view, requests, updateRequest, onCreate }) { const rows = requests.filter(r => view === 'shared' ? ['EN_EDICION','OBSERVADA_JEFATURA','OBSERVADA_ASC_TECNICA'].includes(r.stage) : view === 'history' ? !active.includes(r.stage) : active.includes(r.stage)); const { filters,setFilters,filtered }=useFilters(rows); const [selected,setSelected]=useState(null); const [cancel,setCancel]=useState(null); const [creating,setCreating]=useState(false); return <div className="mx-auto max-w-6xl"><div className="mb-6 flex items-end justify-between"><div><h2 className="text-2xl font-bold text-slate-800">{view==='shared'?'Guías en edición':view==='history'?'Historial':'Mis solicitudes'}</h2><p className="mt-1 text-sm text-slate-500">{view==='shared'?'Edita, corrige y envía la guía a Jefatura.':'Consulta el estado y trazabilidad de tus solicitudes.'}</p></div>{view==='main'&&<button onClick={()=>setCreating(true)} className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white"><Plus size={16}/>Nueva solicitud</button>}</div><FilterBar filters={filters} setFilters={setFilters} rows={rows}/><Table rows={filtered} onOpen={setSelected}/>{creating&&<NewRequest onClose={()=>setCreating(false)} onCreate={data=>{onCreate(data);setCreating(false);}}/>}{selected&&<Detail data={selected} onClose={()=>setSelected(null)} updateRequest={updateRequest} onCancel={setCancel}/>} {cancel&&<Confirm data={cancel} onClose={()=>setCancel(null)} onConfirm={note=>{updateRequest(cancel.id,'CANCELADA','Responsable','Solicitud cancelada',note);setCancel(null);setSelected(null);}}/>}</div>; }
-function NewRequest({onClose,onCreate}){const [guide,setGuide]=useState('');const [area,setArea]=useState('');const [reason,setReason]=useState('');return <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/50 p-4"><form onSubmit={e=>{e.preventDefault();onCreate({guide,area,reason,type:'Última versión de la guía',justification:'Solicitud creada desde la plataforma.'})}} className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl"><div className="flex justify-between"><h3 className="text-lg font-bold">Nueva solicitud</h3><button type="button" onClick={onClose}><X/></button></div><label className="mt-4 block text-sm font-semibold">Guía<input required value={guide} onChange={e=>setGuide(e.target.value)} className="mt-1 w-full rounded border p-3" placeholder="Nombre de la guía"/></label><label className="mt-4 block text-sm font-semibold">Área solicitante<select required value={area} onChange={e=>setArea(e.target.value)} className="mt-1 w-full rounded border p-3"><option value="">Seleccione un área</option><option>Planta</option><option>Acondicionado</option><option>Validación - VOT</option></select></label><label className="mt-4 block text-sm font-semibold">Motivo<select required value={reason} onChange={e=>setReason(e.target.value)} className="mt-1 w-full rounded border p-3"><option value="">Seleccione un motivo</option><option>CAPA</option><option>Control de cambios</option><option>Ajustes menores</option></select></label><div className="mt-6 flex justify-end gap-3"><button type="button" onClick={onClose}>Cancelar</button><button className="rounded bg-blue-700 px-4 py-2 text-white">Enviar solicitud</button></div></form></div>}
-function Table({rows,onOpen}){return <div className="overflow-hidden rounded-xl border border-slate-200 bg-white"><table className="w-full text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-600"><tr><th className="p-4">ID</th><th>Guía</th><th>Área</th><th>Estado</th><th className="p-4"></th></tr></thead><tbody>{rows.length?rows.map(r=><tr key={r.id} className="border-t"><td className="p-4 font-semibold">{r.id}</td><td>{r.guide}</td><td>{r.area}</td><td><StatusBadge status={r.stage}/></td><td className="p-4"><button onClick={()=>onOpen(r)} className="inline-flex gap-1 rounded bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700"><Eye size={14}/>Ver</button></td></tr>):<tr><td colSpan="5" className="p-12 text-center text-slate-500">No se encontraron solicitudes.</td></tr>}</tbody></table></div>}
-function Detail({data,onClose,updateRequest,onCancel}){const canEdit=['EN_EDICION','OBSERVADA_JEFATURA','OBSERVADA_ASC_TECNICA'].includes(data.stage);return <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/50 p-4"><div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl"><div className="flex justify-between"><h3 className="font-bold">Solicitud {data.id}</h3><button onClick={onClose}><X/></button></div><p className="mt-4 font-semibold">{data.guide}</p><div className="mt-3"><StatusBadge status={data.stage}/></div>{canEdit&&<button onClick={()=>updateRequest(data.id,'PENDIENTE_JEFATURA','Responsable','Guía enviada a Jefatura')} className="mt-5 inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white"><Send size={16}/>Enviar a revisión</button>} {canEdit&&<button onClick={()=>onCancel(data)} className="ml-3 mt-5 rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-700">Cancelar solicitud</button>}</div></div>}
-function Confirm({data,onClose,onConfirm}){const [note,setNote]=useState('');return <div className="fixed inset-0 z-[60] grid place-items-center bg-slate-900/50 p-4"><div className="w-full max-w-md rounded-xl bg-white p-6"><h3 className="font-bold">Cancelar {data.id}</h3><textarea value={note} onChange={e=>setNote(e.target.value)} placeholder="Motivo de cancelación (opcional)" className="mt-4 w-full rounded border p-3"/><div className="mt-4 flex justify-end gap-2"><button onClick={onClose}>Volver</button><button onClick={()=>onConfirm(note)} className="rounded bg-red-600 px-3 py-2 text-white">Confirmar cancelación</button></div></div></div>}
+import React, { useState } from 'react';
+import { Plus, Eye, XCircle, FileEdit, Save } from 'lucide-react';
+import StatusBadge from './StatusBadge';
+
+const products = [
+  ['Sólido', 'Fabricación', 'UPROFIX 3.6 TAB', 'F'], ['Sólido', 'Fabricación', 'PROTEGGO 3M TAB 1000mg', 'F'], ['Sólido', 'Envasado', 'DOXIPET - Mezcla', 'F'], ['Sólido', 'Envasado', 'CEFAPET 300 TAB', 'F'], ['Sólido', 'Acondicionado', 'HEPATIN COMP', 'A'], ['Sólido', 'Acondicionado', 'ORALMEC PLUS', 'F'], ['Sólido', 'Acondicionado', 'GERIAX', 'A'],
+  ['Polvo', 'Fabricación', 'RACION - Mezcla Final', 'A'], ['Polvo', 'Fabricación', 'COMPLEJO B ELECTROLITOS', 'F'], ['Polvo', 'Envasado', 'BIOMICIN SUPER', 'A'], ['Polvo', 'Envasado', 'ULTRAVIT NF CON MINERALES + METIO', 'A'], ['Polvo', 'Acondicionado', 'COMPLEJO B NF', 'A'], ['Polvo', 'Acondicionado', 'ULTRAVIT NF CON MINERALES + METIO', 'A'],
+  ['Inyectable', 'Fabricación', 'CALCIN F', 'A'], ['Inyectable', 'Fabricación', 'AUMENTHA ATP', 'F'], ['Inyectable', 'Envasado', 'DEXZANIL', 'A'], ['Inyectable', 'Envasado', 'BIOMICIL 0.1%', 'F'], ['Inyectable', 'Acondicionado', 'HEPATIN', 'A'], ['Inyectable', 'Acondicionado', 'DEXZROYVITAM', 'A'], ['Inyectable', 'Acondicionado', 'TILOZONA', 'F'],
+  ['Líquido', 'Fabricación', '5X1EVOLUTION', 'A'], ['Líquido', 'Fabricación', '5X1DORADO', 'A'], ['Líquido', 'Envasado', '5x1GOLD MAX', 'F'], ['Líquido', 'Envasado', 'POTENCIL 25%', 'F'], ['Líquido', 'Acondicionado', 'TOLCOX', 'A'], ['Líquido', 'Acondicionado', 'FENACOL', 'A'], ['Líquido', 'Acondicionado', 'HEMATOLIC', 'F'],
+  ['Solución Tópica', 'Fabricación', 'RIVOLTA 12%', 'F'], ['Solución Tópica', 'Fabricación', 'VAQUERO', 'A'], ['Solución Tópica', 'Envasado', 'ECOTOBULL', 'A'], ['Solución Tópica', 'Envasado', 'VANTAGGIO', 'A'], ['Solución Tópica', 'Envasado', 'RIVOLTA 6%', 'F'], ['Solución Tópica', 'Acondicionado', 'VAQUERO', 'A'], ['Solución Tópica', 'Acondicionado', 'ECOTOBULL', 'A'],
+  ['Semisólido', 'Fabricación', 'TIOPENAR GEL', 'A'], ['Semisólido', 'Envasado', 'POTENZA CAPS', 'F'], ['Semisólido', 'Acondicionado', 'CREMA CURATIVA PETCO', 'F'],
+].map(([line, phase, product, classification]) => ({ line, phase, product, classification }));
+
+export default function ApplicantPanel({ view, requests, setRequests }) {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [viewModalData, setViewModalData] = useState(null);
+  const [editingGuide, setEditingGuide] = useState(null);
+  const [showRejected, setShowRejected] = useState(false);
+  const isShared = view === 'shared';
+  const visibleRequests = isShared ? requests.filter(req => req.status === 'Aprobado') : requests.filter(req => req.status === 'Pendiente');
+  const rejectedRequests = requests.filter(req => req.status === 'Rechazado');
+
+  const handleSubmit = (newReq) => {
+    const request = {
+      ...newReq,
+      id: `REQ-00${requests.length + 1}`,
+      date: new Date().toISOString().split('T')[0],
+      status: 'Pendiente'
+    };
+    setRequests([request, ...requests]);
+    setIsModalOpen(false);
+  };
+
+  return (
+    <div className="max-w-6xl mx-auto">
+      <div className="flex justify-between items-end mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-800 mb-1">{isShared ? 'Guías compartidas' : 'Mis solicitudes'}</h2>
+          <p className="text-slate-500 text-sm">{isShared ? 'Editables aprobados por ASC disponibles para tu edición.' : 'Solicitudes pendientes de revisión por ASC.'}</p>
+        </div>
+        {!isShared && <div className="flex gap-3"><button onClick={() => setShowRejected(!showRejected)} className="rounded-lg border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50">Rechazos ({rejectedRequests.length})</button><button onClick={() => setIsModalOpen(true)} className="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium shadow-sm transition-colors"><Plus size={16} /> Nueva Solicitud</button></div>}
+      </div>
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <table className="w-full text-left text-sm text-slate-600">
+          <thead className="bg-slate-50 text-slate-700 text-xs uppercase font-semibold border-b border-slate-200">
+            <tr>
+              <th className="px-6 py-4">ID</th>
+              <th className="px-6 py-4">Guía</th>
+              <th className="px-6 py-4">Fecha</th>
+              <th className="px-6 py-4">Tipo</th>
+              <th className="px-6 py-4">Estado</th>
+              <th className="px-6 py-4 text-center">Acciones</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {visibleRequests.length === 0 ? (
+              <tr><td colSpan="6" className="px-6 py-14 text-center"><p className="text-sm font-semibold text-slate-600">{isShared ? 'No tienes guías compartidas todavía.' : 'No tienes solicitudes pendientes.'}</p><p className="mt-1 text-xs text-slate-500">{isShared ? 'Las guías aparecerán aquí cuando ASC apruebe y comparta el editable.' : 'Las solicitudes aprobadas se moverán a Guías compartidas.'}</p></td></tr>
+            ) : visibleRequests.map(req => (
+              <tr key={req.id} className="hover:bg-slate-50 transition-colors">
+                <td className="px-6 py-4 font-medium text-slate-900">{req.id}</td>
+                <td className="px-6 py-4">{req.guide}</td>
+                <td className="px-6 py-4">{req.date}</td>
+                <td className="px-6 py-4">
+                  <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded text-xs font-medium">{req.type}</span>
+                </td>
+                <td className="px-6 py-4"><StatusBadge status={req.status} /></td>
+                <td className="px-6 py-4 text-center">
+                  <button onClick={() => setViewModalData(req)} className="text-blue-600 hover:text-blue-800 flex items-center justify-center gap-1 text-xs font-medium mx-auto bg-blue-50 px-3 py-1.5 rounded-md hover:bg-blue-100 transition-colors">
+                    <Eye size={14} /> Ver
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {!isShared && showRejected && <div className="mt-5 rounded-xl border border-red-100 bg-white p-5"><h3 className="mb-4 text-base font-bold text-slate-800">Solicitudes rechazadas</h3>{rejectedRequests.length ? <div className="space-y-3">{rejectedRequests.map(req => <button key={req.id} onClick={() => setViewModalData(req)} className="flex w-full items-center justify-between rounded-lg border border-slate-100 p-3 text-left hover:bg-slate-50"><span><strong className="text-sm text-slate-800">{req.id} · {req.guide}</strong><span className="mt-1 block text-xs text-red-600">{req.rejectReason || 'Solicitud rechazada por ASC'}</span></span><Eye size={17} className="text-blue-600" /></button>)}</div> : <p className="text-sm text-slate-500">No tienes solicitudes rechazadas.</p>}</div>}
+      {isModalOpen && <NewRequestModal onClose={() => setIsModalOpen(false)} onSubmit={handleSubmit} />}
+      {viewModalData && <ViewRequestModal data={viewModalData} onClose={() => setViewModalData(null)} onEdit={(request) => { setViewModalData(null); setEditingGuide(request); }} />}
+      {editingGuide && <GuideEditorModal data={editingGuide} onClose={() => setEditingGuide(null)} />}
+    </div>
+  );
+}
+
+function NewRequestModal({ onClose, onSubmit }) {
+  const [formData, setFormData] = useState({ productIndex: '', guide: '', area: '', type: 'Última versión de la guía', reason: '', justification: '' });
+  const [search, setSearch] = useState('');
+  const selectedProduct = formData.productIndex === '' ? null : products[Number(formData.productIndex)];
+  const selectProduct = (index) => {
+    const selected = products[Number(index)];
+    setSearch(selected ? selected.product : '');
+    setFormData({ ...formData, productIndex: index, guide: selected ? `${selected.line} ${selected.product} ${selected.phase} - ${selected.classification}` : '' });
+  };
+  const filteredProducts = products.filter((item) => `${item.line} ${item.product} ${item.phase}`.toLowerCase().includes(search.toLowerCase()));
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+      <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
+        <header className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
+          <div><h3 className="text-[22px] font-bold leading-tight text-slate-900">Nueva Solicitud de Editable</h3><p className="mt-1 text-sm text-slate-500">Complete los datos para iniciar el flujo de solicitud.</p></div>
+          <button onClick={onClose} aria-label="Cerrar" className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-slate-600"><XCircle size={22} /></button>
+        </header>
+        <form id="new-req-form" className="space-y-7 overflow-y-auto px-6 py-7" onSubmit={(event) => { event.preventDefault(); if (!formData.guide) return; onSubmit(formData); }}>
+          <div><label className="mb-2 block text-sm font-semibold text-slate-700">Buscar producto de la guía <span className="text-red-600">*</span></label><input required value={search} onChange={(event) => { setSearch(event.target.value); setFormData({ ...formData, productIndex: '', guide: '' }); }} placeholder="Escriba línea, producto o fase..." className="w-full rounded-lg border border-slate-300 px-3.5 py-3 text-sm outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />{!selectedProduct && search && <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-slate-200 bg-white">{filteredProducts.map((item) => { const index = products.indexOf(item); return <button type="button" key={`${item.line}-${item.product}-${item.phase}`} onClick={() => selectProduct(index)} className="block w-full border-b border-slate-100 px-3.5 py-2 text-left text-sm text-slate-700 hover:bg-blue-50"><strong>{item.product}</strong><span className="ml-2 text-xs text-slate-500">{item.line} · {item.phase} · {item.classification}</span></button>; })}{filteredProducts.length === 0 && <p className="px-3.5 py-3 text-sm text-slate-500">No se encontraron productos.</p>}</div>}{selectedProduct && <p className="mt-2 text-xs text-slate-500">Guía: {formData.guide}</p>}</div>
+          <div className="grid gap-4 sm:grid-cols-3"><div><label className="mb-2 block text-sm font-semibold text-slate-700">Línea</label><input readOnly value={selectedProduct?.line || ''} placeholder="Automático" className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-3 text-sm text-slate-600" /></div><div><label className="mb-2 block text-sm font-semibold text-slate-700">Producto</label><input readOnly value={selectedProduct?.product || ''} placeholder="Automático" className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-3 text-sm text-slate-600" /></div><div><label className="mb-2 block text-sm font-semibold text-slate-700">Fase</label><input readOnly value={selectedProduct?.phase || ''} placeholder="Automático" className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-3 text-sm text-slate-600" /></div></div>
+          <div className="grid gap-6 sm:grid-cols-2">
+            <div><label className="mb-2 block text-sm font-semibold text-slate-700">Área Solicitante <span className="text-red-600">*</span></label><select required className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-3 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" value={formData.area} onChange={(event) => setFormData({ ...formData, area: event.target.value })}><option value="">Seleccione un área...</option><option value="Acondicionado">Acondicionado</option><option value="Desarrollo Farmacéutico - DF">Desarrollo Farmacéutico - DF</option><option value="Planta">Planta</option><option value="Validación - VOT">Validación - VOT</option></select></div>
+            <div><label className="mb-2 block text-sm font-semibold text-slate-700">Motivo de la Solicitud <span className="text-red-600">*</span></label><select required className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-3 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" value={formData.reason} onChange={(event) => setFormData({ ...formData, reason: event.target.value })}><option value="">Seleccione un motivo...</option><option value="CAPA">CAPA</option><option value="Control de Cambios - CC">Control de Cambios - CC</option><option value="Ajustes Menores">Ajustes Menores</option><option value="Referencia de creación">Referencia de creación</option></select></div>
+          </div>
+          <div><p className="mb-3 text-sm font-semibold text-slate-700">Tipo de Guía <span className="text-red-600">*</span></p><div className="flex flex-wrap gap-x-7 gap-y-3"><label className="flex cursor-pointer items-center gap-2 text-sm text-slate-600"><input type="radio" className="h-4 w-4 accent-blue-600" checked={formData.type === 'Última versión de la guía'} onChange={() => setFormData({ ...formData, type: 'Última versión de la guía' })} />Última versión de la guía</label><label className="flex cursor-pointer items-center gap-2 text-sm text-slate-600"><input type="radio" className="h-4 w-4 accent-blue-600" checked={formData.type === 'Guía de referencia para producto nuevo'} onChange={() => setFormData({ ...formData, type: 'Guía de referencia para producto nuevo' })} />Guía de referencia (Producto nuevo)</label></div></div>
+          <div><label className="mb-2 block text-sm font-semibold text-slate-700">Justificación detallada <span className="text-red-600">*</span></label><textarea required rows="4" placeholder="Explique brevemente el porqué de la solicitud..." className="w-full resize-none rounded-lg border border-slate-300 px-3.5 py-3 text-sm outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100" value={formData.justification} onChange={(event) => setFormData({ ...formData, justification: event.target.value })} /></div>
+        </form>
+        <footer className="flex justify-end gap-3 border-t border-slate-100 px-6 py-4"><button type="button" onClick={onClose} className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancelar</button><button type="submit" form="new-req-form" className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700">⌁&nbsp; Enviar Solicitud</button></footer>
+      </div>
+    </div>
+  );
+}
+
+function ViewRequestModal({ data, onClose, onEdit }) {
+  return (
+    <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+          <h3 className="text-lg font-bold text-slate-800">Detalles de Solicitud {data.id}</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><XCircle size={20} /></button>
+        </div>
+        <div className="p-6 space-y-5">
+          <div className="flex justify-between items-start">
+            <div><p className="text-xs text-slate-500 uppercase font-bold mb-1">Estado</p><StatusBadge status={data.status} /></div>
+            <div className="text-right"><p className="text-xs text-slate-500 uppercase font-bold mb-1">Fecha</p><p className="text-sm font-medium">{data.date}</p></div>
+          </div>
+          <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 space-y-4">
+            <div><p className="text-xs text-slate-500 uppercase font-bold mb-1">Guía Solicitada</p><p className="text-sm font-medium">{data.guide}</p></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><p className="text-xs text-slate-500 uppercase font-bold mb-1">Área</p><p className="text-sm">{data.area}</p></div>
+              <div><p className="text-xs text-slate-500 uppercase font-bold mb-1">Motivo</p><p className="text-sm">{data.reason}</p></div>
+            </div>
+            <div><p className="text-xs text-slate-500 uppercase font-bold mb-1">Justificación</p><p className="text-sm bg-white p-3 border rounded">{data.justification}</p></div>
+          </div>
+          {data.status === 'Aprobado' && (
+            <div className="border border-emerald-200 bg-emerald-50 rounded-lg p-4">
+              <h4 className="text-sm font-bold text-emerald-800 mb-2 flex items-center gap-2"><FileEdit size={16} /> Editable disponible</h4>
+              <p className="mb-3 text-xs text-emerald-800">La guía se edita dentro de la plataforma. No hay descarga ni exportación habilitada.</p>
+              <button onClick={() => onEdit(data)} className="w-full bg-emerald-600 text-white py-2 rounded text-sm font-medium flex items-center justify-center gap-2"><FileEdit size={16} /> Editar guía</button>
+            </div>
+          )}
+          {data.status === 'Rechazado' && data.rejectReason && (
+            <div className="border border-red-200 bg-red-50 rounded-lg p-4"><h4 className="text-sm font-bold text-red-800 mb-1">Motivo de Rechazo</h4><p className="text-sm text-red-700">{data.rejectReason}</p></div>
+          )}
+        </div>
+        <div className="px-6 py-4 border-t bg-slate-50 flex justify-end"><button onClick={onClose} className="px-4 py-2 text-sm text-slate-700 bg-white border rounded">Cerrar</button></div>
+      </div>
+    </div>
+  );
+}
+
+function GuideEditorModal({ data, onClose }) {
+  const [sheet, setSheet] = useState('1');
+  const [rows, setRows] = useState([
+    ['GUÍA DE FABRICACIÓN', '', 'Código', data.id],
+    ['Guía', data.guide, 'Versión', '01'],
+    ['Área', data.area, 'Fecha de autorización', 'Pendiente'],
+    ['Paso', 'Instrucción', 'Registro', ''],
+    ['1.1', 'Verificar que el área se encuentre liberada y limpia.', '', ''],
+    ['1.2', 'Registrar las condiciones de inicio de la operación.', '', ''],
+  ]);
+  const updateCell = (rowIndex, columnIndex, value) => setRows(current => current.map((row, r) => r === rowIndex ? row.map((cell, c) => c === columnIndex ? value : cell) : row));
+  return <div className="fixed inset-0 z-[60] bg-slate-950/60 p-3 sm:p-6">
+    <div className="mx-auto flex h-full max-w-6xl flex-col overflow-hidden rounded-xl bg-slate-100 shadow-2xl">
+      <header className="flex flex-wrap items-center justify-between gap-4 border-b bg-white px-5 py-4"><div><p className="text-[10px] font-bold tracking-widest text-red-600">EDICIÓN INTERNA · {data.id}</p><h3 className="mt-1 text-base font-bold text-slate-800">{data.guide}</h3><p className="mt-1 text-xs text-slate-500">Solo edición dentro de la plataforma · No hay descarga ni exportación habilitada</p></div><div className="flex gap-2"><button onClick={onClose} className="rounded-lg border bg-white px-4 py-2 text-sm font-semibold text-slate-700">Cerrar</button><button onClick={() => alert('Cambios guardados temporalmente en este prototipo.')} className="flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white"><Save size={15}/> Guardar cambios</button></div></header>
+      <div className="flex gap-1 overflow-x-auto px-4 pt-3">{['1','2','3','4','5','6','HISTORIAL'].map(item => <button key={item} onClick={() => setSheet(item)} className={`whitespace-nowrap rounded-t-md border px-3 py-2 text-xs font-semibold ${sheet === item ? 'border-slate-300 bg-white text-blue-700' : 'border-transparent text-slate-500'}`}>{item === 'HISTORIAL' ? 'Historial de cambio' : `Hoja ${item}`}</button>)}</div>
+      <div className="m-4 flex-1 overflow-auto rounded-lg border bg-white p-4"><div className="mb-3 border border-slate-300 bg-sky-50 py-2 text-center text-sm font-bold text-slate-800">{sheet === '1' ? 'GUÍA DE FABRICACIÓN' : sheet === 'HISTORIAL' ? 'HISTORIAL DE CAMBIO' : `GUÍA DE FABRICACIÓN · HOJA ${sheet}`}</div><table className="min-w-full border-collapse text-sm"> <tbody>{rows.map((row, r) => <tr key={r}>{row.map((cell, c) => <td key={c} className={`min-w-[130px] border border-slate-300 p-0 ${r === 0 || r === 3 ? 'bg-slate-200 font-bold' : ''}`}><input value={cell} onChange={(event) => updateCell(r, c, event.target.value)} className="w-full bg-transparent px-3 py-2 outline-none focus:bg-blue-50" /></td>)}</tr>)}</tbody></table></div>
+    </div>
+  </div>;
+}
