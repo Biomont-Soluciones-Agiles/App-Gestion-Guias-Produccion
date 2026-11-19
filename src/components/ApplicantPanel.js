@@ -53,7 +53,9 @@ export default function ApplicantPanel({ view, requests, setRequests }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {visibleRequests.map(req => (
+            {visibleRequests.length === 0 ? (
+              <tr><td colSpan="6" className="px-6 py-14 text-center"><p className="text-sm font-semibold text-slate-600">{isShared ? 'No tienes guías compartidas todavía.' : 'No tienes solicitudes pendientes.'}</p><p className="mt-1 text-xs text-slate-500">{isShared ? 'Las guías aparecerán aquí cuando ASC apruebe y comparta el editable.' : 'Las solicitudes aprobadas se moverán a Guías compartidas.'}</p></td></tr>
+            ) : visibleRequests.map(req => (
               <tr key={req.id} className="hover:bg-slate-50 transition-colors">
                 <td className="px-6 py-4 font-medium text-slate-900">{req.id}</td>
                 <td className="px-6 py-4">{req.guide}</td>

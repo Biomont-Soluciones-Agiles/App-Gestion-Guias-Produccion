@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckCircle, XCircle } from 'lucide-react';
+import { CheckCircle, XCircle, Eye, ClipboardCheck } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 
 export default function ASCPanel({ view, requests, setRequests }) {
@@ -7,6 +7,8 @@ export default function ASCPanel({ view, requests, setRequests }) {
   const [toast, setToast] = useState('');
   const pendingRequests = requests.filter(r => r.status === 'Pendiente');
   const decisions = requests.filter(r => r.status !== 'Pendiente');
+  const isHistory = view === 'history';
+  const rows = isHistory ? decisions : pendingRequests;
 
   const handleDecision = (id, isApproved, rejectReason = '') => {
     setRequests(requests.map(r => r.id === id ? { ...r, status: isApproved ? 'Aprobado' : 'Rechazado', rejectReason } : r));
@@ -23,7 +25,7 @@ export default function ASCPanel({ view, requests, setRequests }) {
           <span className="text-sm font-medium">{toast}</span>
         </div>
       )}
-      <div className="mb-6"><h2 className="text-2xl font-bold text-slate-800 mb-1">{view === 'history' ? 'Historial de decisiones' : 'Bandeja de Entrada - ASC'}</h2><p className="text-slate-500 text-sm">{view === 'history' ? 'Decisiones tomadas por Aseguramiento de la Calidad.' : 'Solicitudes pendientes de revisión y entrega de editables.'}</p></div>
+      <div className="mb-6"><h2 className="text-2xl font-bold text-slate-800 mb-1">{isHistory ? 'Historial de decisiones' : 'Bandeja de Entrada - ASC'}</h2><p className="text-slate-500 text-sm">{isHistory ? 'Decisiones tomadas por Aseguramiento de la Calidad.' : 'Solicitudes pendientes de revisión y entrega de editables.'}</p></div>
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <table className="w-full text-left text-sm text-slate-600">
           <thead className="bg-slate-50 text-slate-700 text-xs uppercase font-semibold border-b border-slate-200">
@@ -33,22 +35,24 @@ export default function ASCPanel({ view, requests, setRequests }) {
               <th className="px-6 py-4">Guía</th>
               <th className="px-6 py-4">Motivo</th>
               <th className="px-6 py-4">Fecha</th>
+              {isHistory && <th className="px-6 py-4">Decisión</th>}
               <th className="px-6 py-4"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {(view === 'history' ? decisions : pendingRequests).length === 0 ? (
-              <tr><td colSpan="6" className="px-6 py-8 text-center text-slate-500">No hay solicitudes pendientes.</td></tr>
+            {rows.length === 0 ? (
+              <tr><td colSpan={isHistory ? '7' : '6'} className="px-6 py-12 text-center"><ClipboardCheck size={23} className="mx-auto mb-2 text-slate-300" /><p className="text-sm font-semibold text-slate-600">{isHistory ? 'Aún no hay decisiones registradas.' : 'No hay solicitudes pendientes.'}</p><p className="mt-1 text-xs text-slate-500">{isHistory ? 'Las aprobaciones y rechazos aparecerán en esta sección.' : 'Las nuevas solicitudes enviadas por Responsables aparecerán aquí.'}</p></td></tr>
             ) : (
-              (view === 'history' ? decisions : pendingRequests).map(req => (
+              rows.map(req => (
                 <tr key={req.id} className="hover:bg-slate-50 cursor-pointer" onClick={() => setSelectedReq(req)}>
                   <td className="px-6 py-4 font-medium text-slate-900">{req.id}</td>
                   <td className="px-6 py-4">{req.area}</td>
                   <td className="px-6 py-4 font-medium">{req.guide}</td>
                   <td className="px-6 py-4">{req.reason}</td>
                   <td className="px-6 py-4">{req.date}</td>
+                  {isHistory && <td className="px-6 py-4"><StatusBadge status={req.status} /></td>}
                   <td className="px-6 py-4 text-right">
-                    <span className="text-blue-600 font-medium text-xs bg-blue-50 px-3 py-1.5 rounded hover:bg-blue-100">Revisar</span>
+                    <button type="button" onClick={(event) => { event.stopPropagation(); setSelectedReq(req); }} className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100"><Eye size={14} />{isHistory ? 'Ver detalle' : 'Revisar'}</button>
                   </td>
                 </tr>
               ))
@@ -56,12 +60,12 @@ export default function ASCPanel({ view, requests, setRequests }) {
           </tbody>
         </table>
       </div>
-      {selectedReq && <ASCReviewModal data={selectedReq} onClose={() => setSelectedReq(null)} onDecision={handleDecision} />}
+      {selectedReq && <ASCReviewModal data={selectedReq} readOnly={isHistory} onClose={() => setSelectedReq(null)} onDecision={handleDecision} />}
     </div>
   );
 }
 
-function ASCReviewModal({ data, onClose, onDecision }) {
+function ASCReviewModal({ data, readOnly, onClose, onDecision }) {
   const [rejecting, setRejecting] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
 
@@ -94,7 +98,8 @@ function ASCReviewModal({ data, onClose, onDecision }) {
             <div className="bg-white border p-4 rounded-lg text-sm text-slate-700">{data.justification}</div>
           </div>
           <div className="border-t pt-6">
-            {!rejecting ? (
+            {readOnly ? <div className={`rounded-lg border p-4 ${data.status === 'Aprobado' ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50'}`}><p className={`text-sm font-bold ${data.status === 'Aprobado' ? 'text-emerald-800' : 'text-red-800'}`}>Decisión: {data.status}</p><p className={`mt-1 text-sm ${data.status === 'Aprobado' ? 'text-emerald-700' : 'text-red-700'}`}>{data.status === 'Aprobado' ? 'Editable compartido con el área solicitante.' : (data.rejectReason || 'Solicitud rechazada por ASC.')}</p></div> :
+            (!rejecting ? (
               <div className="flex gap-4">
                 <button onClick={handleReject} className="flex-1 py-3 border border-red-300 text-red-700 rounded-lg font-bold hover:bg-red-50 flex justify-center items-center gap-2"><XCircle size={18}/> Rechazar</button>
                 <button onClick={() => onDecision(data.id, true)} className="flex-1 py-3 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 flex justify-center items-center gap-2"><CheckCircle size={18}/> Aprobar y Compartir</button>
@@ -108,7 +113,7 @@ function ASCReviewModal({ data, onClose, onDecision }) {
                   <button onClick={handleReject} disabled={!rejectReason.trim()} className="px-4 py-2 text-sm text-white bg-red-600 rounded disabled:opacity-50">Confirmar</button>
                 </div>
               </div>
-            )}
+            ))}
           </div>
         </div>
       </div>
