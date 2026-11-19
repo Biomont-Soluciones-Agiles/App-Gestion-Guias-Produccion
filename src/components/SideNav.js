@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { LogOut } from 'lucide-react';
 
-export default function SideNav({ currentRole, onLogout }) {
+export default function SideNav({ currentRole, activeView, onNavigate, onLogout }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
   useEffect(() => {
@@ -21,8 +21,8 @@ export default function SideNav({ currentRole, onLogout }) {
       <div className="mb-5 border-t border-slate-100" />
       <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-[.12em] text-slate-400">Navegación</p>
       <nav className="space-y-1">
-        <button className="flex w-full items-center gap-3 rounded-lg bg-blue-50 px-3 py-2.5 text-left text-sm font-semibold text-blue-800"><span className="text-base">▤</span>{isAsc ? 'Solicitudes por revisar' : 'Mis solicitudes'}</button>
-        <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-slate-600 hover:bg-slate-50"><span className="text-base">▱</span>{isAsc ? 'Historial de decisiones' : 'Guías compartidas'}</button>
+        <button onClick={() => onNavigate('main')} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm ${activeView === 'main' ? 'bg-blue-50 font-semibold text-blue-800' : 'font-medium text-slate-600 hover:bg-slate-50'}`}><span className="text-base">▤</span>{isAsc ? 'Solicitudes por revisar' : 'Mis solicitudes'}</button>
+        <button onClick={() => onNavigate(isAsc ? 'history' : 'shared')} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm ${activeView !== 'main' ? 'bg-blue-50 font-semibold text-blue-800' : 'font-medium text-slate-600 hover:bg-slate-50'}`}><span className="text-base">▱</span>{isAsc ? 'Historial de decisiones' : 'Guías compartidas'}</button>
         <a href="https://laboratoriosbiomont.with16.glpi-network.cloud/" target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"><span className="text-base">?</span>Ayuda y soporte</a>
       </nav>
     </div>

@@ -11,10 +11,14 @@ const products = [
   ['Semisólido', 'Fabricación', 'TIOPENAR GEL', 'A'], ['Semisólido', 'Envasado', 'POTENZA CAPS', 'F'], ['Semisólido', 'Acondicionado', 'CREMA CURATIVA PETCO', 'F'],
 ].map(([line, phase, product, classification]) => ({ line, phase, product, classification }));
 
-export default function ApplicantPanel({ requests, setRequests }) {
+export default function ApplicantPanel({ view, requests, setRequests }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [viewModalData, setViewModalData] = useState(null);
   const [editingGuide, setEditingGuide] = useState(null);
+  const [showRejected, setShowRejected] = useState(false);
+  const isShared = view === 'shared';
+  const visibleRequests = isShared ? requests.filter(req => req.status === 'Aprobado') : requests.filter(req => req.status === 'Pendiente');
+  const rejectedRequests = requests.filter(req => req.status === 'Rechazado');
 
   const handleSubmit = (newReq) => {
     const request = {
@@ -31,12 +35,10 @@ export default function ApplicantPanel({ requests, setRequests }) {
     <div className="max-w-6xl mx-auto">
       <div className="flex justify-between items-end mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800 mb-1">Mis Solicitudes</h2>
-          <p className="text-slate-500 text-sm">Historial de solicitudes de guías de producción editables.</p>
+          <h2 className="text-2xl font-bold text-slate-800 mb-1">{isShared ? 'Guías compartidas' : 'Mis solicitudes'}</h2>
+          <p className="text-slate-500 text-sm">{isShared ? 'Editables aprobados por ASC disponibles para tu edición.' : 'Solicitudes pendientes de revisión por ASC.'}</p>
         </div>
-        <button onClick={() => setIsModalOpen(true)} className="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium shadow-sm transition-colors">
-          <Plus size={16} /> Nueva Solicitud
-        </button>
+        {!isShared && <div className="flex gap-3"><button onClick={() => setShowRejected(!showRejected)} className="rounded-lg border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50">Rechazos ({rejectedRequests.length})</button><button onClick={() => setIsModalOpen(true)} className="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium shadow-sm transition-colors"><Plus size={16} /> Nueva Solicitud</button></div>}
       </div>
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <table className="w-full text-left text-sm text-slate-600">
@@ -51,7 +53,7 @@ export default function ApplicantPanel({ requests, setRequests }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {requests.map(req => (
+            {visibleRequests.map(req => (
               <tr key={req.id} className="hover:bg-slate-50 transition-colors">
                 <td className="px-6 py-4 font-medium text-slate-900">{req.id}</td>
                 <td className="px-6 py-4">{req.guide}</td>
@@ -70,6 +72,7 @@ export default function ApplicantPanel({ requests, setRequests }) {
           </tbody>
         </table>
       </div>
+      {!isShared && showRejected && <div className="mt-5 rounded-xl border border-red-100 bg-white p-5"><h3 className="mb-4 text-base font-bold text-slate-800">Solicitudes rechazadas</h3>{rejectedRequests.length ? <div className="space-y-3">{rejectedRequests.map(req => <button key={req.id} onClick={() => setViewModalData(req)} className="flex w-full items-center justify-between rounded-lg border border-slate-100 p-3 text-left hover:bg-slate-50"><span><strong className="text-sm text-slate-800">{req.id} · {req.guide}</strong><span className="mt-1 block text-xs text-red-600">{req.rejectReason || 'Solicitud rechazada por ASC'}</span></span><Eye size={17} className="text-blue-600" /></button>)}</div> : <p className="text-sm text-slate-500">No tienes solicitudes rechazadas.</p>}</div>}
       {isModalOpen && <NewRequestModal onClose={() => setIsModalOpen(false)} onSubmit={handleSubmit} />}
       {viewModalData && <ViewRequestModal data={viewModalData} onClose={() => setViewModalData(null)} onEdit={(request) => { setViewModalData(null); setEditingGuide(request); }} />}
       {editingGuide && <GuideEditorModal data={editingGuide} onClose={() => setEditingGuide(null)} />}

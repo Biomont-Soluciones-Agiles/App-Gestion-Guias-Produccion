@@ -13,15 +13,17 @@ const mockRequests = [
 export default function App() {
   const [user, setUser] = useState(null);
   const [requests, setRequests] = useState(mockRequests);
+  const [view, setView] = useState('main');
   if (!user) return <LoginScreen onLogin={setUser} />;
   const isAsc = user === 'ASC';
+  const pageTitle = isAsc ? (view === 'history' ? 'Historial de decisiones' : 'Solicitudes por revisar') : (view === 'shared' ? 'Guías compartidas' : 'Mis solicitudes');
   return <div className="min-h-screen bg-slate-50 flex">
-    <SideNav currentRole={user} onLogout={() => setUser(null)} />
+    <SideNav currentRole={user} activeView={view} onNavigate={setView} onLogout={() => setUser(null)} />
     <main className="min-w-0 flex-1">
       <header className="flex h-[88px] items-center border-b border-slate-200 bg-white px-10">
-        <div><p className="text-[10px] font-bold uppercase tracking-[.14em] text-blue-700">Gestión de producción</p><h1 className="mt-1 text-xl font-bold text-slate-800">{isAsc ? 'Solicitudes por revisar' : 'Mis solicitudes'}</h1></div>
+        <div><p className="text-[10px] font-bold uppercase tracking-[.14em] text-blue-700">Gestión de producción</p><h1 className="mt-1 text-xl font-bold text-slate-800">{pageTitle}</h1></div>
       </header>
-      <div className="p-8 lg:p-10">{isAsc ? <ASCPanel requests={requests} setRequests={setRequests} /> : <ApplicantPanel requests={requests} setRequests={setRequests} />}</div>
+      <div className="p-8 lg:p-10">{isAsc ? <ASCPanel view={view} requests={requests} setRequests={setRequests} /> : <ApplicantPanel view={view} requests={requests} setRequests={setRequests} />}</div>
     </main>
   </div>;
 }

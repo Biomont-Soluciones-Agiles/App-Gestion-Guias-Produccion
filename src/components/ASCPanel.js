@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { CheckCircle, XCircle } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 
-export default function ASCPanel({ requests, setRequests }) {
+export default function ASCPanel({ view, requests, setRequests }) {
   const [selectedReq, setSelectedReq] = useState(null);
   const [toast, setToast] = useState('');
   const pendingRequests = requests.filter(r => r.status === 'Pendiente');
+  const decisions = requests.filter(r => r.status !== 'Pendiente');
 
   const handleDecision = (id, isApproved, rejectReason = '') => {
     setRequests(requests.map(r => r.id === id ? { ...r, status: isApproved ? 'Aprobado' : 'Rechazado', rejectReason } : r));
@@ -22,10 +23,7 @@ export default function ASCPanel({ requests, setRequests }) {
           <span className="text-sm font-medium">{toast}</span>
         </div>
       )}
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-slate-800 mb-1">Bandeja de Entrada - ASC</h2>
-        <p className="text-slate-500 text-sm">Solicitudes pendientes de revisión y entrega de editables.</p>
-      </div>
+      <div className="mb-6"><h2 className="text-2xl font-bold text-slate-800 mb-1">{view === 'history' ? 'Historial de decisiones' : 'Bandeja de Entrada - ASC'}</h2><p className="text-slate-500 text-sm">{view === 'history' ? 'Decisiones tomadas por Aseguramiento de la Calidad.' : 'Solicitudes pendientes de revisión y entrega de editables.'}</p></div>
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <table className="w-full text-left text-sm text-slate-600">
           <thead className="bg-slate-50 text-slate-700 text-xs uppercase font-semibold border-b border-slate-200">
@@ -39,10 +37,10 @@ export default function ASCPanel({ requests, setRequests }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {pendingRequests.length === 0 ? (
+            {(view === 'history' ? decisions : pendingRequests).length === 0 ? (
               <tr><td colSpan="6" className="px-6 py-8 text-center text-slate-500">No hay solicitudes pendientes.</td></tr>
             ) : (
-              pendingRequests.map(req => (
+              (view === 'history' ? decisions : pendingRequests).map(req => (
                 <tr key={req.id} className="hover:bg-slate-50 cursor-pointer" onClick={() => setSelectedReq(req)}>
                   <td className="px-6 py-4 font-medium text-slate-900">{req.id}</td>
                   <td className="px-6 py-4">{req.area}</td>
