@@ -26,7 +26,9 @@ export default function ApplicantPanel({ view, requests, setRequests }) {
       ...newReq,
       id: `REQ-00${requests.length + 1}`,
       date: new Date().toISOString().split('T')[0],
-      status: 'Pendiente'
+      status: 'Pendiente',
+      stage: 'PENDIENTE_ASC_INICIAL',
+      history: [{ actor: 'Responsable', action: 'Solicitud creada', date: new Date().toISOString().split('T')[0] }]
     };
     setRequests([request, ...requests]);
     setIsModalOpen(false);
