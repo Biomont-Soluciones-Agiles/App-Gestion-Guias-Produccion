@@ -5,12 +5,7 @@ import ApplicantPanel from './components/ApplicantPanel';
 import ASCPanel from './components/ASCPanel';
 import JefaturaPanel from './components/JefaturaPanel';
 
-const initialRequests = [
-  { id: 'REQ-001', area: 'Validación - VOT', guide: 'Líquido POTENCIL 25% Envasado - F', reason: 'Referencia de creación', date: '2026-11-09', type: 'Guía de referencia', status: 'Pendiente', stage: 'PENDIENTE_ASC_INICIAL', justification: 'Se requiere para iniciar el protocolo de validación.', history: [] },
-  { id: 'REQ-002', area: 'Acondicionado', guide: 'Semisólido POTENZA CAPS Envasado - F', reason: 'Ajustes menores', date: '2026-11-08', type: 'Última versión de la guía', status: 'Aprobado', stage: 'EN_EDICION', justification: 'Actualización de rendimientos en la etapa de estuchado.', history: [{ actor: 'ASC', action: 'Solicitud inicial aprobada', date: '2026-11-08' }] },
-  { id: 'REQ-003', area: 'Planta', guide: 'Polvo BIOMICIN SUPER Envasado - A', reason: 'Control de cambios', date: '2026-11-07', type: 'Última versión de la guía', status: 'Aprobado', stage: 'PENDIENTE_JEFATURA', justification: 'Cambio documentado en proceso de fabricación.', history: [{ actor: 'ASC', action: 'Solicitud inicial aprobada', date: '2026-11-07' }, { actor: 'Responsable', action: 'Guía enviada a Jefatura', date: '2026-11-08' }] },
-  { id: 'REQ-004', area: 'Desarrollo Farmacéutico - DF', guide: 'Sólido UPROFIX 3.6 TAB Fabricación - F', reason: 'CAPA', date: '2026-11-06', type: 'Última versión de la guía', status: 'Aprobado', stage: 'PENDIENTE_ASC_TECNICA', justification: 'Se incorporaron acciones correctivas aprobadas.', history: [{ actor: 'ASC', action: 'Solicitud inicial aprobada', date: '2026-11-06' }, { actor: 'Jefatura', action: 'Guía aprobada para revisión técnica', date: '2026-11-08' }] },
-];
+const initialRequests = [];
 
 const titles = {
   Responsable: { main: 'Mis solicitudes', shared: 'Guías en edición', history: 'Historial' },
