@@ -23,7 +23,7 @@ export default function App() {
   const [view, setView] = useState('main');
   const [requests, setRequests] = useState(initialRequests);
   const today = () => new Date().toISOString().slice(0, 10);
-  const updateRequest = (id, nextStage, actor, action, note = '') => setRequests(current => current.map(request => request.id !== id ? request : ({ ...request, stage: nextStage, history: [...(request.history || []), { actor, action, note, date: today() }] })));
+  const updateRequest = (id, nextStage, actor, action, note = '') => setRequests(current => current.map(request => request.id !== id ? request : ({ ...request, stage: nextStage, status: nextStage === 'RECHAZADA_ASC_INICIAL' ? 'Rechazado' : nextStage === 'EN_EDICION' || nextStage === 'PENDIENTE_JEFATURA' || nextStage === 'PENDIENTE_ASC_TECNICA' || nextStage === 'APROBADA_TECNICA' ? 'Aprobado' : request.status, history: [...(request.history || []), { actor, action, note, date: today() }] })));
   const addRequest = (data) => setRequests(current => [{ ...data, id: `REQ-${String(current.length + 1).padStart(3, '0')}`, date: today(), stage: 'PENDIENTE_ASC_INICIAL', history: [{ actor: 'Responsable', action: 'Solicitud creada', date: today() }] }, ...current]);
   if (!user) return <LoginScreen onLogin={(role) => { setUser(role); setView('main'); }} />;
   const panelProps = { view, requests, updateRequest, onCreate: addRequest };
