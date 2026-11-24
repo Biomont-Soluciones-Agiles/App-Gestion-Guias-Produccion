@@ -15,6 +15,7 @@ export default function ApplicantPanel({ view, requests, setRequests, updateRequ
   const handleSubmit = async (newReq) => {
     const request = {
       ...newReq,
+      sharepointItemId: newReq.id,
       id: `REQ-00${requests.length + 1}`,
       date: new Date().toISOString().split('T')[0],
       status: 'Pendiente',
