@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Eye, XCircle, FileEdit, Save } from 'lucide-react';
+import { Plus, Eye, XCircle, FileEdit } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 import FilterBar, { useFilters } from './FilterBar';
 import GuideViewer from './GuideViewer';
 
-export default function ApplicantPanel({ view, requests, setRequests, updateRequest, onSaveGuide, onCreate }) {
+export default function ApplicantPanel({ view, requests, setRequests, updateRequest, onWorkbookSaved, onCreate }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [viewModalData, setViewModalData] = useState(null);
   const [editingGuide, setEditingGuide] = useState(null);
@@ -74,7 +74,12 @@ export default function ApplicantPanel({ view, requests, setRequests, updateRequ
       {isModalOpen && <NewRequestModal onClose={() => setIsModalOpen(false)} onSubmit={handleSubmit} />}
       {viewModalData && <ViewRequestModal data={viewModalData} onClose={() => setViewModalData(null)} onView={setViewingGuide} onEdit={(request) => { setViewModalData(null); setEditingGuide(request); }} />}
       {viewingGuide && <GuideViewer data={viewingGuide} onClose={() => setViewingGuide(null)} />}
-      {editingGuide && <GuideEditorModal data={editingGuide} onClose={() => setEditingGuide(null)} onSave={onSaveGuide} onSubmit={async (request) => { await updateRequest(request.id, 'PENDIENTE_JEFATURA', 'Responsable', 'Nueva versión enviada a revisión de Jefatura'); setEditingGuide(null); }} />}
+      {editingGuide && <GuideViewer editable data={editingGuide} onClose={() => setEditingGuide(null)}
+        onSaved={itemId => onWorkbookSaved(editingGuide.id, itemId)}
+        onSubmit={async itemId => {
+          const ok = await updateRequest(editingGuide.id, 'PENDIENTE_JEFATURA', 'Responsable', 'Nueva versión enviada a revisión de Jefatura', '', itemId);
+          if (ok) setEditingGuide(null);
+        }} />}
     </div>
   );
 }
@@ -151,9 +156,9 @@ function ViewRequestModal({ data, onClose, onEdit, onView }) {
           {['EN_EDICION', 'OBSERVADA_JEFATURA', 'OBSERVADA_ASC_TECNICA'].includes(data.stage) && (
             <div className="border border-emerald-200 bg-emerald-50 rounded-lg p-4">
               <h4 className="text-sm font-bold text-emerald-800 mb-2 flex items-center gap-2"><FileEdit size={16} /> Editable disponible</h4>
-              <p className="mb-3 text-xs text-emerald-800">Puedes consultar el archivo original de SharePoint. La edición real todavía está en preparación.</p>
-              <button onClick={() => onView(data)} className="mb-2 w-full bg-blue-700 text-white py-2 rounded text-sm font-medium flex items-center justify-center gap-2"><Eye size={16} /> Ver Excel original</button>
-              <button onClick={() => onEdit(data)} className="w-full bg-emerald-600 text-white py-2 rounded text-sm font-medium flex items-center justify-center gap-2"><FileEdit size={16} /> Abrir editor de prueba</button>
+              <p className="mb-3 text-xs text-emerald-800">Edita la guía y envía la versión guardada a Jefatura.</p>
+              <button onClick={() => onView(data)} className="mb-2 w-full bg-blue-700 text-white py-2 rounded text-sm font-medium flex items-center justify-center gap-2"><Eye size={16} /> Ver Excel</button>
+              <button onClick={() => onEdit(data)} className="w-full bg-emerald-600 text-white py-2 rounded text-sm font-medium flex items-center justify-center gap-2"><FileEdit size={16} /> Editar guía</button>
             </div>
           )}
           {data.status === 'Rechazado' && data.rejectReason && (
@@ -164,26 +169,4 @@ function ViewRequestModal({ data, onClose, onEdit, onView }) {
       </div>
     </div>
   );
-}
-
-function GuideEditorModal({ data, onClose, onSave, onSubmit }) {
-  const [sheet, setSheet] = useState('1');
-  const [saved, setSaved] = useState(false);
-  const [rows, setRows] = useState(data.guideRows || [
-    ['GUÍA DE FABRICACIÓN', '', 'Código', data.id],
-    ['Guía', data.guide, 'Versión', '01'],
-    ['Área', data.area, 'Fecha de autorización', 'Pendiente'],
-    ['Paso', 'Instrucción', 'Registro', ''],
-    ['1.1', 'Verificar que el área se encuentre liberada y limpia.', '', ''],
-    ['1.2', 'Registrar las condiciones de inicio de la operación.', '', ''],
-  ]);
-  const updateCell = (rowIndex, columnIndex, value) => setRows(current => current.map((row, r) => r === rowIndex ? row.map((cell, c) => c === columnIndex ? value : cell) : row));
-  const saveChanges = async () => { try { await onSave(data.id, rows); setSaved(true); } catch (error) { window.alert(error.message); } };
-  return <div className="fixed inset-0 z-[60] bg-slate-950/60 p-3 sm:p-6">
-    <div className="mx-auto flex h-full max-w-6xl flex-col overflow-hidden rounded-xl bg-slate-100 shadow-2xl">
-      <header className="flex flex-wrap items-center justify-between gap-4 border-b bg-white px-5 py-4"><div><p className="text-[10px] font-bold tracking-widest text-red-600">EDICIÓN INTERNA · {data.id}</p><h3 className="mt-1 text-base font-bold text-slate-800">{data.guide}</h3><p className="mt-1 text-xs text-slate-500">Solo edición dentro de la plataforma · No hay descarga ni exportación habilitada</p>{saved && <p className="mt-1 text-xs font-semibold text-emerald-700">Cambios guardados correctamente.</p>}</div><div className="flex gap-2"><button onClick={onClose} className="rounded-lg border bg-white px-4 py-2 text-sm font-semibold text-slate-700">Cerrar</button><button onClick={saveChanges} className="flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white"><Save size={15}/>Guardar cambios</button><button onClick={() => { onSave(data.id, rows); onSubmit(data); }} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white">Enviar a Jefatura</button></div></header>
-      <div className="flex gap-1 overflow-x-auto px-4 pt-3">{['1','2','3','4','5','6','HISTORIAL'].map(item => <button key={item} onClick={() => setSheet(item)} className={`whitespace-nowrap rounded-t-md border px-3 py-2 text-xs font-semibold ${sheet === item ? 'border-slate-300 bg-white text-blue-700' : 'border-transparent text-slate-500'}`}>{item === 'HISTORIAL' ? 'Historial de cambio' : `Hoja ${item}`}</button>)}</div>
-      <div className="m-4 flex-1 overflow-auto rounded-lg border bg-white p-4"><div className="mb-3 border border-slate-300 bg-sky-50 py-2 text-center text-sm font-bold text-slate-800">{sheet === '1' ? 'GUÍA DE FABRICACIÓN' : sheet === 'HISTORIAL' ? 'HISTORIAL DE CAMBIO' : `GUÍA DE FABRICACIÓN · HOJA ${sheet}`}</div><table className="min-w-full border-collapse text-sm"> <tbody>{rows.map((row, r) => <tr key={r}>{row.map((cell, c) => <td key={c} className={`min-w-[130px] border border-slate-300 p-0 ${r === 0 || r === 3 ? 'bg-slate-200 font-bold' : ''}`}><input value={cell} onChange={(event) => updateCell(r, c, event.target.value)} className="w-full bg-transparent px-3 py-2 outline-none focus:bg-blue-50" /></td>)}</tr>)}</tbody></table></div>
-    </div>
-  </div>;
 }
