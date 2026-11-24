@@ -1,18 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Plus, Eye, XCircle, FileEdit, Save } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 import FilterBar, { useFilters } from './FilterBar';
 
-const products = [
-  ['Sólido', 'Fabricación', 'UPROFIX 3.6 TAB', 'F'], ['Sólido', 'Fabricación', 'PROTEGGO 3M TAB 1000mg', 'F'], ['Sólido', 'Envasado', 'DOXIPET - Mezcla', 'F'], ['Sólido', 'Envasado', 'CEFAPET 300 TAB', 'F'], ['Sólido', 'Acondicionado', 'HEPATIN COMP', 'A'], ['Sólido', 'Acondicionado', 'ORALMEC PLUS', 'F'], ['Sólido', 'Acondicionado', 'GERIAX', 'A'],
-  ['Polvo', 'Fabricación', 'RACION - Mezcla Final', 'A'], ['Polvo', 'Fabricación', 'COMPLEJO B ELECTROLITOS', 'F'], ['Polvo', 'Envasado', 'BIOMICIN SUPER', 'A'], ['Polvo', 'Envasado', 'ULTRAVIT NF CON MINERALES + METIO', 'A'], ['Polvo', 'Acondicionado', 'COMPLEJO B NF', 'A'], ['Polvo', 'Acondicionado', 'ULTRAVIT NF CON MINERALES + METIO', 'A'],
-  ['Inyectable', 'Fabricación', 'CALCIN F', 'A'], ['Inyectable', 'Fabricación', 'AUMENTHA ATP', 'F'], ['Inyectable', 'Envasado', 'DEXZANIL', 'A'], ['Inyectable', 'Envasado', 'BIOMICIL 0.1%', 'F'], ['Inyectable', 'Acondicionado', 'HEPATIN', 'A'], ['Inyectable', 'Acondicionado', 'DEXZROYVITAM', 'A'], ['Inyectable', 'Acondicionado', 'TILOZONA', 'F'],
-  ['Líquido', 'Fabricación', '5X1EVOLUTION', 'A'], ['Líquido', 'Fabricación', '5X1DORADO', 'A'], ['Líquido', 'Envasado', '5x1GOLD MAX', 'F'], ['Líquido', 'Envasado', 'POTENCIL 25%', 'F'], ['Líquido', 'Acondicionado', 'TOLCOX', 'A'], ['Líquido', 'Acondicionado', 'FENACOL', 'A'], ['Líquido', 'Acondicionado', 'HEMATOLIC', 'F'],
-  ['Solución Tópica', 'Fabricación', 'RIVOLTA 12%', 'F'], ['Solución Tópica', 'Fabricación', 'VAQUERO', 'A'], ['Solución Tópica', 'Envasado', 'ECOTOBULL', 'A'], ['Solución Tópica', 'Envasado', 'VANTAGGIO', 'A'], ['Solución Tópica', 'Envasado', 'RIVOLTA 6%', 'F'], ['Solución Tópica', 'Acondicionado', 'VAQUERO', 'A'], ['Solución Tópica', 'Acondicionado', 'ECOTOBULL', 'A'],
-  ['Semisólido', 'Fabricación', 'TIOPENAR GEL', 'A'], ['Semisólido', 'Envasado', 'POTENZA CAPS', 'F'], ['Semisólido', 'Acondicionado', 'CREMA CURATIVA PETCO', 'F'],
-].map(([line, phase, product, classification]) => ({ line, phase, product, classification }));
-
-export default function ApplicantPanel({ view, requests, setRequests, updateRequest, onSaveGuide }) {
+export default function ApplicantPanel({ view, requests, setRequests, updateRequest, onSaveGuide, onCreate }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [viewModalData, setViewModalData] = useState(null);
   const [editingGuide, setEditingGuide] = useState(null);
@@ -21,7 +12,7 @@ export default function ApplicantPanel({ view, requests, setRequests, updateRequ
   const visibleRequests = isHistory ? requests.filter(req => req.status === 'Rechazado' || req.stage === 'CANCELADA' || req.stage === 'APROBADA_TECNICA') : isShared ? requests.filter(req => ['EN_EDICION', 'OBSERVADA_JEFATURA', 'OBSERVADA_ASC_TECNICA'].includes(req.stage)) : requests.filter(req => req.status === 'Pendiente');
   const { filters, setFilters, filtered } = useFilters(visibleRequests);
 
-  const handleSubmit = (newReq) => {
+  const handleSubmit = async (newReq) => {
     const request = {
       ...newReq,
       id: `REQ-00${requests.length + 1}`,
@@ -30,8 +21,7 @@ export default function ApplicantPanel({ view, requests, setRequests, updateRequ
       stage: 'PENDIENTE_ASC_INICIAL',
       history: [{ actor: 'Responsable', action: 'Solicitud creada', date: new Date().toISOString().split('T')[0] }]
     };
-    setRequests([request, ...requests]);
-    setIsModalOpen(false);
+    try { if (onCreate) await onCreate(request); else setRequests([request, ...requests]); setIsModalOpen(false); } catch (error) { window.alert(error.message || 'No se pudo guardar la solicitud.'); }
   };
 
   return (
@@ -80,7 +70,7 @@ export default function ApplicantPanel({ view, requests, setRequests, updateRequ
       </div>
       {isModalOpen && <NewRequestModal onClose={() => setIsModalOpen(false)} onSubmit={handleSubmit} />}
       {viewModalData && <ViewRequestModal data={viewModalData} onClose={() => setViewModalData(null)} onEdit={(request) => { setViewModalData(null); setEditingGuide(request); }} />}
-      {editingGuide && <GuideEditorModal data={editingGuide} onClose={() => setEditingGuide(null)} onSave={onSaveGuide} onSubmit={(request) => { updateRequest(request.id, 'PENDIENTE_JEFATURA', 'Responsable', 'Nueva versión enviada a revisión de Jefatura'); setEditingGuide(null); }} />}
+      {editingGuide && <GuideEditorModal data={editingGuide} onClose={() => setEditingGuide(null)} onSave={onSaveGuide} onSubmit={async (request) => { await updateRequest(request.id, 'PENDIENTE_JEFATURA', 'Responsable', 'Nueva versión enviada a revisión de Jefatura'); setEditingGuide(null); }} />}
     </div>
   );
 }
@@ -88,13 +78,25 @@ export default function ApplicantPanel({ view, requests, setRequests, updateRequ
 function NewRequestModal({ onClose, onSubmit }) {
   const [formData, setFormData] = useState({ productIndex: '', guide: '', area: '', type: 'Última versión de la guía', reason: '', justification: '' });
   const [search, setSearch] = useState('');
+  const [products, setProducts] = useState([]);
+  const [catalogStatus, setCatalogStatus] = useState('loading');
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    const controller = new AbortController();
+    setCatalogStatus('loading');
+    fetch('/api/sharepoint', { signal: controller.signal, cache: 'no-store' })
+      .then(async response => { if (!response.ok) throw new Error('No se pudo consultar el catálogo.'); return response.json(); })
+      .then(data => { if (!Array.isArray(data.guides)) throw new Error('Respuesta inválida.'); setProducts(data.guides.map(item => ({ ...item, line: item.line || '', product: item.product || item.name.replace(/\.xlsx$/i, ''), phase: item.phase || '', classification: item.classification || '' }))); setCatalogStatus('ready'); })
+      .catch(error => { if (error.name !== 'AbortError') setCatalogStatus('error'); });
+    return () => controller.abort();
+  }, [attempt]);
   const selectedProduct = formData.productIndex === '' ? null : products[Number(formData.productIndex)];
   const selectProduct = (index) => {
     const selected = products[Number(index)];
     setSearch(selected ? selected.product : '');
-    setFormData({ ...formData, productIndex: index, guide: selected ? `${selected.line} ${selected.product} ${selected.phase} - ${selected.classification}` : '' });
+    setFormData({ ...formData, productIndex: index, guide: selected ? selected.name : '' });
   };
-  const filteredProducts = products.filter((item) => `${item.line} ${item.product} ${item.phase}`.toLowerCase().includes(search.toLowerCase()));
+  const filteredProducts = products.filter((item) => `${item.name} ${item.line} ${item.product} ${item.phase}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(search.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()));
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
       <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
@@ -102,8 +104,11 @@ function NewRequestModal({ onClose, onSubmit }) {
           <div><h3 className="text-[22px] font-bold leading-tight text-slate-900">Nueva Solicitud de Editable</h3><p className="mt-1 text-sm text-slate-500">Complete los datos para iniciar el flujo de solicitud.</p></div>
           <button onClick={onClose} aria-label="Cerrar" className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-slate-600"><XCircle size={22} /></button>
         </header>
-        <form id="new-req-form" className="space-y-7 overflow-y-auto px-6 py-7" onSubmit={(event) => { event.preventDefault(); if (!formData.guide) return; onSubmit(formData); }}>
-          <div><label className="mb-2 block text-sm font-semibold text-slate-700">Buscar producto de la guía <span className="text-red-600">*</span></label><input required value={search} onChange={(event) => { setSearch(event.target.value); setFormData({ ...formData, productIndex: '', guide: '' }); }} placeholder="Escriba línea, producto o fase..." className="w-full rounded-lg border border-slate-300 px-3.5 py-3 text-sm outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />{!selectedProduct && search && <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-slate-200 bg-white">{filteredProducts.map((item) => { const index = products.indexOf(item); return <button type="button" key={`${item.line}-${item.product}-${item.phase}`} onClick={() => selectProduct(index)} className="block w-full border-b border-slate-100 px-3.5 py-2 text-left text-sm text-slate-700 hover:bg-blue-50"><strong>{item.product}</strong><span className="ml-2 text-xs text-slate-500">{item.line} · {item.phase} · {item.classification}</span></button>; })}{filteredProducts.length === 0 && <p className="px-3.5 py-3 text-sm text-slate-500">No se encontraron productos.</p>}</div>}{selectedProduct && <p className="mt-2 text-xs text-slate-500">Guía: {formData.guide}</p>}</div>
+        <form id="new-req-form" className="space-y-7 overflow-y-auto px-6 py-7" onSubmit={(event) => { event.preventDefault(); if (!formData.guide || !selectedProduct) return; onSubmit({ ...selectedProduct, ...formData }); }}>
+          {catalogStatus === 'loading' && <p role="status" className="text-sm text-slate-500">Cargando guías de SharePoint...</p>}
+          {catalogStatus === 'error' && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">No se pudo cargar el catálogo de SharePoint. <button type="button" className="font-semibold underline" onClick={() => setAttempt(value => value + 1)}>Reintentar</button></div>}
+          {catalogStatus === 'ready' && products.length === 0 && <p role="status" className="text-sm text-slate-500">No hay archivos Excel disponibles en la biblioteca de SharePoint.</p>}
+          <div><label className="mb-2 block text-sm font-semibold text-slate-700">Buscar producto de la guía <span className="text-red-600">*</span></label><input required value={search} onChange={(event) => { setSearch(event.target.value); setFormData({ ...formData, productIndex: '', guide: '' }); }} placeholder="Escriba línea, producto o fase..." className="w-full rounded-lg border border-slate-300 px-3.5 py-3 text-sm outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />{!selectedProduct && search && <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-slate-200 bg-white">{filteredProducts.map((item) => { const index = products.indexOf(item); return <button type="button" key={item.id} onClick={() => selectProduct(index)} className="block w-full border-b border-slate-100 px-3.5 py-2 text-left text-sm text-slate-700 hover:bg-blue-50"><strong>{item.product}</strong><span className="ml-2 text-xs text-slate-500">{[item.name, item.line, item.phase, item.classification].filter(Boolean).join(" · ")}</span></button>; })}{filteredProducts.length === 0 && <p className="px-3.5 py-3 text-sm text-slate-500">No se encontraron productos.</p>}</div>}{selectedProduct && <p className="mt-2 text-xs text-slate-500">Guía: {formData.guide}</p>}</div>
           <div className="grid gap-4 sm:grid-cols-3"><div><label className="mb-2 block text-sm font-semibold text-slate-700">Línea</label><input readOnly value={selectedProduct?.line || ''} placeholder="Automático" className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-3 text-sm text-slate-600" /></div><div><label className="mb-2 block text-sm font-semibold text-slate-700">Producto</label><input readOnly value={selectedProduct?.product || ''} placeholder="Automático" className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-3 text-sm text-slate-600" /></div><div><label className="mb-2 block text-sm font-semibold text-slate-700">Fase</label><input readOnly value={selectedProduct?.phase || ''} placeholder="Automático" className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-3 text-sm text-slate-600" /></div></div>
           <div className="grid gap-6 sm:grid-cols-2">
             <div><label className="mb-2 block text-sm font-semibold text-slate-700">Área Solicitante <span className="text-red-600">*</span></label><select required className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-3 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" value={formData.area} onChange={(event) => setFormData({ ...formData, area: event.target.value })}><option value="">Seleccione un área...</option><option value="Acondicionado">Acondicionado</option><option value="Desarrollo Farmacéutico - DF">Desarrollo Farmacéutico - DF</option><option value="Planta">Planta</option><option value="Validación - VOT">Validación - VOT</option></select></div>
@@ -168,7 +173,7 @@ function GuideEditorModal({ data, onClose, onSave, onSubmit }) {
     ['1.2', 'Registrar las condiciones de inicio de la operación.', '', ''],
   ]);
   const updateCell = (rowIndex, columnIndex, value) => setRows(current => current.map((row, r) => r === rowIndex ? row.map((cell, c) => c === columnIndex ? value : cell) : row));
-  const saveChanges = () => { onSave(data.id, rows); setSaved(true); };
+  const saveChanges = async () => { try { await onSave(data.id, rows); setSaved(true); } catch (error) { window.alert(error.message); } };
   return <div className="fixed inset-0 z-[60] bg-slate-950/60 p-3 sm:p-6">
     <div className="mx-auto flex h-full max-w-6xl flex-col overflow-hidden rounded-xl bg-slate-100 shadow-2xl">
       <header className="flex flex-wrap items-center justify-between gap-4 border-b bg-white px-5 py-4"><div><p className="text-[10px] font-bold tracking-widest text-red-600">EDICIÓN INTERNA · {data.id}</p><h3 className="mt-1 text-base font-bold text-slate-800">{data.guide}</h3><p className="mt-1 text-xs text-slate-500">Solo edición dentro de la plataforma · No hay descarga ni exportación habilitada</p>{saved && <p className="mt-1 text-xs font-semibold text-emerald-700">Cambios guardados correctamente.</p>}</div><div className="flex gap-2"><button onClick={onClose} className="rounded-lg border bg-white px-4 py-2 text-sm font-semibold text-slate-700">Cerrar</button><button onClick={saveChanges} className="flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white"><Save size={15}/>Guardar cambios</button><button onClick={() => { onSave(data.id, rows); onSubmit(data); }} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white">Enviar a Jefatura</button></div></header>
