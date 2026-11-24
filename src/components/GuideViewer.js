@@ -47,6 +47,10 @@ export default function GuideViewer({data, onClose, editable=false, onSaved, onS
       return next;
     });
   }
+  function changeImage(id, patch) {
+    setNotice('');
+    setChanges(current=>({...current,['image:'+id]:{sheet:book.sheet.name,type:'image',id,...patch}}));
+  }
   async function save(submit) {
     setBusy(true); setError('');
     try {
@@ -76,7 +80,7 @@ export default function GuideViewer({data, onClose, editable=false, onSaved, onS
       {error && <div role="alert" className="bg-red-50 p-3 text-sm text-red-800">{error} {!book && <button className="underline" onClick={()=>setReload(n=>n+1)}>Reintentar</button>}</div>}
       {notice && <p role="status" className="bg-emerald-50 px-5 py-2 text-sm text-emerald-800">{notice}</p>}
       {book ? editable ? <>
-        <WorksheetGrid key={book.sheet.name} sheet={book.sheet} changes={changes} onChange={change} busy={busy}/>
+        <WorksheetGrid key={book.sheet.name} sheet={book.sheet} changes={changes} onChange={change} onImageChange={changeImage} busy={busy}/>
         <div className="flex flex-wrap items-center gap-1 border-t bg-slate-50 px-3 py-1.5">
           {book.sheets.map(name=><button key={name} aria-pressed={name===book.sheet.name} disabled={busy || pending.length>0}
             onClick={()=>{setSheet(name);setNotice('');}} className={'rounded px-3 py-1 text-sm '+(name===book.sheet.name?'bg-white font-bold text-emerald-800 shadow':'text-slate-600')}>{name}</button>)}
