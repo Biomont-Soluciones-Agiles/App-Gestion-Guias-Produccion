@@ -2,11 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { Plus, Eye, XCircle, FileEdit, Save } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 import FilterBar, { useFilters } from './FilterBar';
+import GuideViewer from './GuideViewer';
 
 export default function ApplicantPanel({ view, requests, setRequests, updateRequest, onSaveGuide, onCreate }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [viewModalData, setViewModalData] = useState(null);
   const [editingGuide, setEditingGuide] = useState(null);
+  const [viewingGuide, setViewingGuide] = useState(null);
   const isShared = view === 'shared';
   const isHistory = view === 'history';
   const visibleRequests = isHistory ? requests.filter(req => req.status === 'Rechazado' || req.stage === 'CANCELADA' || req.stage === 'APROBADA_TECNICA') : isShared ? requests.filter(req => ['EN_EDICION', 'OBSERVADA_JEFATURA', 'OBSERVADA_ASC_TECNICA'].includes(req.stage)) : requests.filter(req => req.status === 'Pendiente');
@@ -70,7 +72,8 @@ export default function ApplicantPanel({ view, requests, setRequests, updateRequ
         </table>
       </div>
       {isModalOpen && <NewRequestModal onClose={() => setIsModalOpen(false)} onSubmit={handleSubmit} />}
-      {viewModalData && <ViewRequestModal data={viewModalData} onClose={() => setViewModalData(null)} onEdit={(request) => { setViewModalData(null); setEditingGuide(request); }} />}
+      {viewModalData && <ViewRequestModal data={viewModalData} onClose={() => setViewModalData(null)} onView={setViewingGuide} onEdit={(request) => { setViewModalData(null); setEditingGuide(request); }} />}
+      {viewingGuide && <GuideViewer data={viewingGuide} onClose={() => setViewingGuide(null)} />}
       {editingGuide && <GuideEditorModal data={editingGuide} onClose={() => setEditingGuide(null)} onSave={onSaveGuide} onSubmit={async (request) => { await updateRequest(request.id, 'PENDIENTE_JEFATURA', 'Responsable', 'Nueva versión enviada a revisión de Jefatura'); setEditingGuide(null); }} />}
     </div>
   );
@@ -124,7 +127,7 @@ function NewRequestModal({ onClose, onSubmit }) {
   );
 }
 
-function ViewRequestModal({ data, onClose, onEdit }) {
+function ViewRequestModal({ data, onClose, onEdit, onView }) {
   return (
     <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden">
@@ -148,8 +151,9 @@ function ViewRequestModal({ data, onClose, onEdit }) {
           {['EN_EDICION', 'OBSERVADA_JEFATURA', 'OBSERVADA_ASC_TECNICA'].includes(data.stage) && (
             <div className="border border-emerald-200 bg-emerald-50 rounded-lg p-4">
               <h4 className="text-sm font-bold text-emerald-800 mb-2 flex items-center gap-2"><FileEdit size={16} /> Editable disponible</h4>
-              <p className="mb-3 text-xs text-emerald-800">La guía se edita dentro de la plataforma. No hay descarga ni exportación habilitada.</p>
-              <button onClick={() => onEdit(data)} className="w-full bg-emerald-600 text-white py-2 rounded text-sm font-medium flex items-center justify-center gap-2"><FileEdit size={16} /> Editar guía</button>
+              <p className="mb-3 text-xs text-emerald-800">Puedes consultar el archivo original de SharePoint. La edición real todavía está en preparación.</p>
+              <button onClick={() => onView(data)} className="mb-2 w-full bg-blue-700 text-white py-2 rounded text-sm font-medium flex items-center justify-center gap-2"><Eye size={16} /> Ver Excel original</button>
+              <button onClick={() => onEdit(data)} className="w-full bg-emerald-600 text-white py-2 rounded text-sm font-medium flex items-center justify-center gap-2"><FileEdit size={16} /> Abrir editor de prueba</button>
             </div>
           )}
           {data.status === 'Rechazado' && data.rejectReason && (
