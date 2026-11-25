@@ -41,7 +41,7 @@ export default function GuideViewer({data, onClose, editable=false, onSaved, onS
       const next={...current};
       if (value === (cell?.value ?? '')) delete next[address];
       else {
-        const numeric=!cell?.textual && /^[+-]?(?:0|[1-9]\d*)(?:[.,]\d+)?(?:e[+-]?\d+)?$/i.test(value);
+        const numeric=/^[+-]?(?:0|[1-9]\d*)(?:[.,]\d+)?(?:e[+-]?\d+)?$/i.test(value);
         next[address]={address,sheet:book.sheet.name,value,type:numeric?'number':'text'};
       }
       return next;

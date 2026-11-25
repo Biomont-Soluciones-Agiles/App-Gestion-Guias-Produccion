@@ -4,6 +4,7 @@ const {connectLibrary} = require('../lib/sharepoint');
 const {getRequest, canEdit, commit, fail} = require('../lib/request-state');
 const {readDraft,writeDraft,deleteDraft} = require('../lib/draft-storage');
 const {openWorkbook} = require('../lib/workbook');
+const {recalculate} = require('../lib/recalculate');
 
 module.exports = async (req,res) => {
   res.setHeader('Cache-Control','private, no-store');
@@ -66,7 +67,7 @@ module.exports = async (req,res) => {
       return res.json({revision,itemId:item.id,webUrl,sheets:book.sheets,sheet});
     }
     if (req.body?.revision!==revision) throw fail(409,'La guía cambió. Vuelve a abrirla antes de guardar.');
-    const output=book.apply(req.body.changes);
+    const output=recalculate(book.apply(req.body.changes));
     if (!row.draft_object_path) {
       const latest=await library.item(item.id);
       if (latest.eTag!==item.eTag) throw fail(409,'El Excel cambió en SharePoint. Vuelve a abrirlo.');
