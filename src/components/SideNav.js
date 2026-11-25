@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ClipboardList, FileEdit, History, LogOut, SearchCheck, Settings, Headphones } from 'lucide-react';
+import { ClipboardList, FileEdit, History, LogOut, SearchCheck, Settings, Headphones, PenTool } from 'lucide-react';
 
 const navigation = {
-  Responsable: [{ id: 'main', label: 'Mis solicitudes', icon: ClipboardList }, { id: 'shared', label: 'Guías compartidas', icon: FileEdit }, { id: 'history', label: 'Historial', icon: History }],
-  ASC: [{ id: 'main', label: 'Solicitudes iniciales', icon: ClipboardList }, { id: 'technical', label: 'Revisión técnica', icon: SearchCheck }, { id: 'history', label: 'Historial de decisiones', icon: History }, { id: 'settings', label: 'Configuración funcional', icon: Settings }],
+  Responsable: [{ id: 'main', label: 'Mis solicitudes', icon: ClipboardList }, { id: 'shared', label: 'Guías compartidas', icon: FileEdit }, { id: 'signatures', label: 'Mis firmas', icon: PenTool }, { id: 'history', label: 'Historial', icon: History }],
+  ASC: [{ id: 'main', label: 'Solicitudes iniciales', icon: ClipboardList }, { id: 'technical', label: 'Revisión técnica', icon: SearchCheck }, { id: 'signature_routes', label: 'Rutas de firma', icon: PenTool }, { id: 'signatures', label: 'Mis firmas', icon: PenTool }, { id: 'history', label: 'Historial de decisiones', icon: History }, { id: 'settings', label: 'Configuración funcional', icon: Settings }],
   Participante: [{ id: 'main', label: 'Firmas pendientes', icon: ClipboardList }],
-  Jefatura: [{ id: 'main', label: 'Revisiones pendientes', icon: ClipboardList }, { id: 'history', label: 'Historial de revisiones', icon: History }]
+  Jefatura: [{ id: 'main', label: 'Revisiones pendientes', icon: ClipboardList }, { id: 'signatures', label: 'Mis firmas', icon: PenTool }, { id: 'history', label: 'Historial de revisiones', icon: History }]
 };
 
 export default function SideNav({ currentRole, displayName, displayRole, activeView, onNavigate, onLogout }) {

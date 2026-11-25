@@ -1,6 +1,7 @@
 const { session, hasRole } = require('./_auth');
 const {getRequest, commit, canEdit, editable, fail} = require('../lib/request-state');
 const {connectLibrary, draftPrefix} = require('../lib/sharepoint');
+const {approveTechnical} = require('../lib/technical-approval');
 const url = () => `${process.env.SUPABASE_URL}/rest/v1`;
 const headers = () => ({ apikey: process.env.SUPABASE_SECRET_KEY, Authorization: `Bearer ${process.env.SUPABASE_SECRET_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=representation' });
 const send = (res, code, body) => res.status(code).json(body);
@@ -41,7 +42,8 @@ module.exports = async (req, res) => {
         const [role,...targets] = editable.includes(row.workflow_stage) ? ['Responsable','PENDIENTE_JEFATURA'] : transitions[row.workflow_stage] || [];
         if (!targets.includes(stage) || actor !== role || !hasRole(user,role)) throw fail(403,'La transición solicitada no está disponible.');
         if (role === 'Responsable' && (!canEdit(user,row) || itemId !== row.sharepoint_item_id)) throw fail(409,'La versión cambió o la edición está cerrada. Vuelve a abrir la guía.');
-        const saved = await commit(row,{workflow_stage:stage});
+        const saved = row.workflow_stage === 'PENDIENTE_ASC_TECNICA' && stage === 'APROBADA_TECNICA'
+          ? await approveTechnical(row) : await commit(row,{workflow_stage:stage});
         await fetch(`${url()}/workflow_events`, { method: 'POST', headers: headers(), body: JSON.stringify({ request_id: id, actor_role: actor, event_type: event, note: note || null }) });
         return send(res, 200, saved);
       }

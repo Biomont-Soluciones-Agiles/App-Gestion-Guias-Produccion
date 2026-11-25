@@ -3,6 +3,7 @@ const {session,hasRole} = require('./_auth');
 const {connectLibrary} = require('../lib/sharepoint');
 const {getRequest, canEdit, commit, fail} = require('../lib/request-state');
 const {readDraft,writeDraft,deleteDraft} = require('../lib/draft-storage');
+const {hasSignatureAccess} = require('../lib/signature-access');
 const {openWorkbook} = require('../lib/workbook');
 const {recalculate} = require('../lib/recalculate');
 
@@ -10,9 +11,11 @@ module.exports = async (req,res) => {
   res.setHeader('Cache-Control','private, no-store');
   const user=session(req);
   if (!user) return res.status(401).json({error:'Inicia sesión nuevamente.'});
-  if (!['Responsable','Jefatura','ASC'].some(role => hasRole(user,role))) return res.status(403).json({error:'No tienes acceso a esta guía.'});
+
   try {
     if (!['GET','POST'].includes(req.method)) throw fail(405,'Método no permitido.');
+    const permitted=['Responsable','Jefatura','ASC'].some(role => hasRole(user,role));
+    if(!permitted && (req.method!=='GET' || req.query.edit==='1' || req.query.compare==='1' || !(await hasSignatureAccess(user.email,req.query.id)))) throw fail(403,'No tienes acceso a esta guía.');
     const row=await getRequest(req.query.id);
     if (!row.sharepoint_item_id) throw fail(404,'La solicitud carece de archivo de SharePoint.');
     const comparing=req.query.compare==='1';
