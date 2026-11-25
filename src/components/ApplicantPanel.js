@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Eye, XCircle, FileEdit } from 'lucide-react';
-import StatusBadge from './StatusBadge';
+import StatusBadge, { SignatureStatus } from './StatusBadge';
 import FilterBar, { useFilters } from './FilterBar';
 import GuideViewer from './GuideViewer';
 
@@ -61,7 +61,7 @@ export default function ApplicantPanel({ view, requests, setRequests, updateRequ
                 <td className="px-6 py-4">
                   <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded text-xs font-medium">{req.type}</span>
                 </td>
-                <td className="px-6 py-4"><StatusBadge status={req.stage} /></td>
+                <td className="px-6 py-4"><div className="flex flex-col items-start gap-1"><StatusBadge status={req.stage} />{isHistory && req.stage==='APROBADA_TECNICA' && <SignatureStatus step={req.signatureStep}/>}</div></td>
                 <td className="px-6 py-4 text-center">
                   <button onClick={() => setViewModalData(req)} className="text-blue-600 hover:text-blue-800 flex items-center justify-center gap-1 text-xs font-medium mx-auto bg-blue-50 px-3 py-1.5 rounded-md hover:bg-blue-100 transition-colors">
                     <Eye size={14} /> Ver

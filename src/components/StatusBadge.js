@@ -3,3 +3,11 @@ const labels = { PENDIENTE_ASC_INICIAL: 'Pendiente de ASC', EN_EDICION: 'En edic
 const colors = { Pendiente: 'bg-amber-100 text-amber-800 border-amber-200', Aprobado: 'bg-emerald-100 text-emerald-800 border-emerald-200', Rechazado: 'bg-red-100 text-red-800 border-red-200', PENDIENTE_ASC_INICIAL: 'bg-amber-100 text-amber-800 border-amber-200', EN_EDICION: 'bg-blue-100 text-blue-800 border-blue-200', PENDIENTE_JEFATURA: 'bg-violet-100 text-violet-800 border-violet-200', OBSERVADA_JEFATURA: 'bg-orange-100 text-orange-800 border-orange-200', PENDIENTE_ASC_TECNICA: 'bg-indigo-100 text-indigo-800 border-indigo-200', OBSERVADA_ASC_TECNICA: 'bg-orange-100 text-orange-800 border-orange-200', APROBADA_TECNICA: 'bg-emerald-100 text-emerald-800 border-emerald-200', RECHAZADA_ASC_INICIAL: 'bg-red-100 text-red-800 border-red-200', CANCELADA: 'bg-slate-200 text-slate-700 border-slate-300' };
 export const stageLabel = stage => labels[stage] || stage;
 export default function StatusBadge({ status }) { return <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${colors[status] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>{stageLabel(status)}</span>; }
+export function SignatureStatus({step}) {
+  let label='Ruta de firmas pendiente',color='bg-slate-100 text-slate-700 border-slate-200';
+  if(['Elaborador','Revision','Aprobacion'].includes(step)) { label='En ruta de firmas';color='bg-blue-100 text-blue-800 border-blue-200'; }
+  else if(step==='Lista para publicar') { label='Pendiente de publicación';color='bg-amber-100 text-amber-800 border-amber-200'; }
+  else if(step==='Publicada') { label='Finalizada';color='bg-emerald-100 text-emerald-800 border-emerald-200'; }
+  else if(step) { label='Estado de firmas desconocido';color='bg-amber-100 text-amber-800 border-amber-200'; }
+  return <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${color}`}>{label}</span>;
+}

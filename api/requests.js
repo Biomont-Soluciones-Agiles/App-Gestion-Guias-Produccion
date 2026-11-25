@@ -13,7 +13,17 @@ module.exports = async (req, res) => {
     if (req.method === 'GET') {
       if (!['Responsable','Jefatura','ASC'].some(role => hasRole(user,role))) return send(res, 200, []);
       const response = await fetch(`${url()}/production_requests?select=*,workflow_events(*)&order=created_at.desc`, { headers: headers() });
-      return send(res, response.status, await response.json());
+      const rows=await response.json();
+      if(!response.ok) return send(res,response.status,rows);
+      const ids=rows.filter(row=>row.workflow_stage==='APROBADA_TECNICA').map(row=>String(row.id));
+      const steps=new Map();
+      for(let i=0;i<ids.length;i+=100) {
+        const params=new URLSearchParams({select:'request_id,step',request_id:'in.('+ids.slice(i,i+100).join(',')+')'});
+        const result=await fetch(`${url()}/guide_signature_routes?${params}`,{headers:headers()});
+        if(!result.ok) throw fail(502,'No se pudo consultar el estado de las rutas de firma.');
+        for(const route of await result.json()) steps.set(String(route.request_id),route.step);
+      }
+      return send(res,200,rows.map(row=>({...row,signature_step:steps.get(String(row.id)) || null})));
     }
     if (req.method === 'POST') {
       const { action, request, id, stage, actor, event, note, itemId } = req.body || {};
