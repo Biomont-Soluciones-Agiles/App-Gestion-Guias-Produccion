@@ -41,7 +41,7 @@ function layout(sheet) {
 }
 const inside=(range,r,c)=>range.start.row<=r && range.end.row>=r && range.start.col<=c && range.end.col>=c;
 
-export default function WorksheetGrid({sheet,changes,onChange,onImageChange,busy}) {
+export default function WorksheetGrid({sheet,changes,onChange,onImageChange,busy,readOnly=false,marks={}}) {
   const pane=useRef(null),input=useRef(null);
   const [active,setActive]=useState('');
   const [viewport,setViewport]=useState({left:0,top:0,width:1200,height:700});
@@ -64,12 +64,12 @@ export default function WorksheetGrid({sheet,changes,onChange,onImageChange,busy
     const address=columnName(c)+r;
     if(tiles.has(address)) return;
     const cell=cells.get(address), draft=changes[address];
-    const locked=sheet.protected || cell?.locked || sheet.formulaRanges.some(f=>inside(f,r,c));
+    const locked=readOnly || sheet.protected || cell?.locked || sheet.formulaRanges.some(f=>inside(f,r,c));
     const selected=active===address && !locked && !busy;
     const style={position:'absolute',left:x[c-1]+44,top:y[r-1]+24,width:x[merge?.end.col || c]-x[c-1],
       height:y[merge?.end.row || r]-y[r-1],border:sheet.gridLines?'1px solid #e2e8f0':undefined,
       textAlign:cell?.numeric?'right':'left',...sheet.styles[cell?.style || 0],outline:selected?'2px solid #16834c':undefined,
-      outlineOffset:-2,backgroundColor:draft?'#edfaf2':sheet.styles[cell?.style || 0]?.backgroundColor};
+      outlineOffset:-2,backgroundColor:marks[address]==='removed'?'#fee2e2':marks[address]==='changed'?'#fef08a':draft?'#edfaf2':sheet.styles[cell?.style || 0]?.backgroundColor};
     function move(dr,dc) {
       const nr=dr>0?(merge?.end.row || r)+1:r+dr,nc=dc>0?(merge?.end.col || c)+1:c+dc;
       if(nr<1 || nr>=y.length || nc<1 || nc>=x.length){setActive('');return;}
@@ -87,6 +87,8 @@ export default function WorksheetGrid({sheet,changes,onChange,onImageChange,busy
         onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();setActive('');} else if(e.key==='Tab' || (e.key==='Enter' && !e.altKey && !e.shiftKey)){
           e.preventDefault();move(e.key==='Enter'?1:0,e.key==='Tab'?(e.shiftKey?-1:1):0);
         }}}/> : draft?.value ?? cell?.display ?? ''}
+    {marks[address]==='removed' && <span className="absolute right-1 top-0 font-bold text-red-700">×</span>}
+    {marks[address]==='removed' && <span className="absolute right-1 top-0 font-bold text-red-700">×</span>}
     </div>);
   }
   const visibleMerges=sheet.merges.filter(m=>m.end.row>=rows[0] && m.start.row<=rows[rows.length-1] && m.end.col>=cols[0] && m.start.col<=cols[cols.length-1]);
@@ -99,7 +101,7 @@ export default function WorksheetGrid({sheet,changes,onChange,onImageChange,busy
         if(edit?.action==='delete') return null;
         const selected=active==='image:'+image.id;
         return <SheetPicture key={image.id} image={image} edit={edit} x={x} y={y}
-          disabled={busy || sheet.protected} selected={selected} onSelect={()=>setActive('image:'+image.id)}
+          disabled={busy || readOnly || sheet.protected} selected={selected} onSelect={()=>setActive('image:'+image.id)}
           onChange={patch=>onImageChange(image.id,patch)} onDeselect={()=>setActive('')}/>;
       })}
       {cols.map(c=><div key={c} className="absolute border bg-slate-100 text-center text-xs text-slate-600" style={{top:viewport.top,left:44+x[c-1],width:x[c]-x[c-1],height:24}}>{columnName(c)}</div>)}
@@ -139,7 +141,7 @@ function SheetPicture({image,edit,x,y,disabled,selected,onSelect,onChange,onDese
   }
   function remove() {
     if(disabled) return;
-    if(window.confirm('¿Eliminar esta imagen de la versión en edición?')) {
+    if(window.confirm('Â¿Eliminar esta imagen de la versiÃ³n en ediciÃ³n?')) {
       onChange({action:'delete'});onDeselect();
     }
   }
