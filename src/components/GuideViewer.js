@@ -29,7 +29,7 @@ export default function GuideViewer({data, onClose, editable=false, onSaved, onS
     const controller = new AbortController();
     setBook(null);
     setError('');
-    workbookRequest(data.dbId, editable ? {edit:'1',sheet} : {}, {signal:controller.signal})
+    workbookRequest(data.dbId, editable ? {edit:'1',sheet} : {sheet}, {signal:controller.signal})
       .then(result => {if (!controller.signal.aborted) setBook(result);})
       .catch(e => {if (!controller.signal.aborted) setError(e.message);});
     return () => controller.abort();
@@ -59,7 +59,7 @@ export default function GuideViewer({data, onClose, editable=false, onSaved, onS
         const result=await workbookRequest(data.dbId,{}, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({revision:book.revision,changes:pending.map(c=>c.type==='number'?{...c,value:c.value.replace(',','.')}:c)})});
         itemId=result.itemId;
         setChanges({}); onSaved(itemId);
-        setNotice('Versión guardada en SharePoint.');
+        setNotice('Cambios guardados.');
         setReload(n=>n+1);
       }
       if (submit) await onSubmit(itemId);
@@ -86,7 +86,10 @@ export default function GuideViewer({data, onClose, editable=false, onSaved, onS
             onClick={()=>{setSheet(name);setNotice('');}} className={'rounded px-3 py-1 text-sm '+(name===book.sheet.name?'bg-white font-bold text-emerald-800 shadow':'text-slate-600')}>{name}</button>)}
           <span role="status" className="ml-auto text-xs text-slate-600">{book.sheet.protected?'Hoja protegida':pending.length?'Guarda para cambiar de hoja.':'Haz clic en una celda para editarla.'}</span>
         </div>
-      </> : <div className="relative flex-1 overflow-hidden"><iframe title={'Excel · '+data.guide} src={previewUrl(book.webUrl)} className="absolute inset-x-0 top-0 w-full border-0" style={{height:'calc(100% + 32px)'}}/></div> : !error && <p className="p-5 text-sm">Abriendo el Excel de SharePoint…</p>}
+      </> : book.sheet ? <>
+        <WorksheetGrid key={book.sheet.name} sheet={book.sheet} readOnly changes={{}} />
+        <nav className="flex gap-1 overflow-x-auto border-t bg-white px-3 py-2">{book.sheets.map(name=><button key={name} onClick={()=>setSheet(name)} className="rounded px-3 py-1 text-sm">{name}</button>)}</nav>
+      </> : <div className="relative flex-1 overflow-hidden"><iframe title={'Excel · '+data.guide} src={previewUrl(book.webUrl)} className="absolute inset-x-0 top-0 w-full border-0" style={{height:'calc(100% + 32px)'}}/></div> : !error && <p className="p-5 text-sm">Abriendo la guía…</p>}
     </div>
   </div>;
 }
