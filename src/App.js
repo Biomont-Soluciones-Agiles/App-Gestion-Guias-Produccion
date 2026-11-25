@@ -7,12 +7,6 @@ import JefaturaPanel from './components/JefaturaPanel';
 
 const initialRequests = [];
 
-const titles = {
-  Responsable: { main: 'Mis solicitudes', shared: 'Guías en edición', history: 'Historial' },
-  ASC: { main: 'Solicitudes iniciales', technical: 'Revisión técnica', history: 'Historial de decisiones' },
-  Jefatura: { main: 'Revisiones pendientes', history: 'Historial de revisiones' },
-};
-
 export default function App() {
   const [user, setUser] = useState(null);
   const [testRole, setTestRole] = useState('Responsable');
@@ -29,5 +23,5 @@ export default function App() {
   const activeRole = user.role === 'Administrador' ? testRole : user.role;
   const changeTestRole = (role) => { setTestRole(role); setView('main'); };
   const panelProps = { view, requests, updateRequest, onCreate: addRequest };
-  return <div className="min-h-screen bg-slate-50 flex"><SideNav currentRole={activeRole} displayName={user.name} displayRole={user.role === 'Administrador' ? `Administrador · Vista ${activeRole}` : activeRole} activeView={view} onNavigate={setView} onLogout={() => fetch('/api/auth/logout').finally(() => { setUser(null); window.location.assign('/'); })} /><main className="min-w-0 flex-1"><header className="flex h-[88px] items-center justify-between border-b border-slate-200 bg-white px-10"><div><p className="text-[10px] font-bold uppercase tracking-[.14em] text-blue-700">Gestión de producción</p><h1 className="mt-1 text-xl font-bold text-slate-800">{titles[activeRole][view]}</h1></div>{user.role === 'Administrador' && <label className="text-sm font-semibold text-slate-600">Vista de pruebas<select value={activeRole} onChange={e => changeTestRole(e.target.value)} className="ml-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-blue-800"><option>Responsable</option><option>Jefatura</option><option>ASC</option></select></label>}</header><div className="p-8 lg:p-10">{activeRole === 'Responsable' ? <ApplicantPanel view={view} requests={requests} setRequests={setRequests} updateRequest={updateRequest} onWorkbookSaved={onWorkbookSaved} onCreate={addRequest} /> : activeRole === 'ASC' ? <ASCPanel {...panelProps} /> : <JefaturaPanel {...panelProps} />}</div></main></div>;
+  return <div className="min-h-screen bg-white flex"><SideNav currentRole={activeRole} displayName={user.name} displayRole={user.role === 'Administrador' ? `Administrador · Vista ${activeRole}` : activeRole} activeView={view} onNavigate={setView} onLogout={() => fetch('/api/auth/logout').finally(() => { setUser(null); window.location.assign('/'); })} /><main className="min-w-0 flex-1"><header className="flex min-h-[72px] items-center justify-end border-b border-slate-100 bg-white px-6 lg:px-10">{user.role === 'Administrador' && <label className="text-sm font-semibold text-slate-600">Vista de pruebas<select value={activeRole} onChange={e => changeTestRole(e.target.value)} className="ml-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-blue-800"><option>Responsable</option><option>Jefatura</option><option>ASC</option></select></label>}</header><div className="p-8 lg:p-10">{activeRole === 'Responsable' ? <ApplicantPanel view={view} requests={requests} setRequests={setRequests} updateRequest={updateRequest} onWorkbookSaved={onWorkbookSaved} onCreate={addRequest} /> : activeRole === 'ASC' ? <ASCPanel {...panelProps} /> : <JefaturaPanel {...panelProps} />}</div></main></div>;
 }
