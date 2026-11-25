@@ -4,14 +4,15 @@ import StatusBadge from './StatusBadge';
 import FilterBar, { useFilters } from './FilterBar';
 import GuideViewer from './GuideViewer';
 
-export default function ApplicantPanel({ view, requests, setRequests, updateRequest, onWorkbookSaved, onCreate }) {
+export default function ApplicantPanel({ view, requests, setRequests, updateRequest, onWorkbookSaved, onCreate, user }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [viewModalData, setViewModalData] = useState(null);
   const [editingGuide, setEditingGuide] = useState(null);
   const [viewingGuide, setViewingGuide] = useState(null);
-  const isShared = view === 'shared';
   const isHistory = view === 'history';
-  const visibleRequests = isHistory ? requests.filter(req => req.status === 'Rechazado' || req.stage === 'CANCELADA' || req.stage === 'APROBADA_TECNICA') : isShared ? requests.filter(req => ['EN_EDICION', 'OBSERVADA_JEFATURA', 'OBSERVADA_ASC_TECNICA'].includes(req.stage)) : requests.filter(req => req.status === 'Pendiente');
+  const isFinished = req => ['RECHAZADA_ASC_INICIAL', 'CANCELADA', 'APROBADA_TECNICA'].includes(req.stage);
+  const canEdit = req => ['EN_EDICION', 'OBSERVADA_JEFATURA', 'OBSERVADA_ASC_TECNICA'].includes(req.stage) && (user.role === 'Administrador' || (req.history?.find(event => event.event_type === 'Solicitud creada')?.note || 'molin@biomont.com.pe') === user.email);
+  const visibleRequests = requests.filter(req => isHistory ? isFinished(req) : !isFinished(req));
   const { filters, setFilters, filtered } = useFilters(visibleRequests);
 
   const handleSubmit = async (newReq) => {
@@ -31,10 +32,10 @@ export default function ApplicantPanel({ view, requests, setRequests, updateRequ
     <div className="max-w-6xl mx-auto">
       <div className="flex justify-between items-end mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800 mb-1">{isHistory ? 'Historial' : isShared ? 'Guías compartidas' : 'Mis solicitudes'}</h2>
-          <p className="text-slate-500 text-sm">{isHistory ? 'Solicitudes finalizadas, rechazadas o canceladas.' : isShared ? 'Editables aprobados por ASC disponibles para tu edición.' : 'Solicitudes pendientes de revisión por ASC.'}</p>
+          <h2 className="text-2xl font-bold text-slate-800 mb-1">{isHistory ? 'Historial' : 'Mis solicitudes'}</h2>
+          <p className="text-slate-500 text-sm">{isHistory ? 'Solicitudes aprobadas técnicamente, rechazadas o canceladas.' : 'Consulta el estado de tus solicitudes y edita las guías disponibles.'}</p>
         </div>
-        {!isShared && !isHistory && <button onClick={() => setIsModalOpen(true)} className="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium shadow-sm transition-colors"><Plus size={16} /> Nueva Solicitud</button>}
+        {!isHistory && <button onClick={() => setIsModalOpen(true)} className="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium shadow-sm transition-colors"><Plus size={16} /> Nueva Solicitud</button>}
       </div>
       <FilterBar filters={filters} setFilters={setFilters} rows={visibleRequests} />
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -51,7 +52,7 @@ export default function ApplicantPanel({ view, requests, setRequests, updateRequ
           </thead>
           <tbody className="divide-y divide-slate-100">
             {filtered.length === 0 ? (
-              <tr><td colSpan="6" className="px-6 py-14 text-center"><p className="text-sm font-semibold text-slate-600">{isShared ? 'No tienes guías compartidas todavía.' : 'No tienes solicitudes pendientes.'}</p><p className="mt-1 text-xs text-slate-500">{isShared ? 'Las guías aparecerán aquí cuando ASC apruebe y comparta el editable.' : 'Las solicitudes aprobadas se moverán a Guías compartidas.'}</p></td></tr>
+              <tr><td colSpan="6" className="px-6 py-14 text-center"><p className="text-sm font-semibold text-slate-600">{isHistory ? 'No hay solicitudes en el historial.' : 'No hay solicitudes en curso.'}</p></td></tr>
             ) : filtered.map(req => (
               <tr key={req.id} className="hover:bg-slate-50 transition-colors">
                 <td className="px-6 py-4 font-medium text-slate-900">{req.id}</td>
@@ -60,11 +61,12 @@ export default function ApplicantPanel({ view, requests, setRequests, updateRequ
                 <td className="px-6 py-4">
                   <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded text-xs font-medium">{req.type}</span>
                 </td>
-                <td className="px-6 py-4"><StatusBadge status={req.stage === 'CANCELADA' ? req.stage : req.status} /></td>
+                <td className="px-6 py-4"><StatusBadge status={req.stage} /></td>
                 <td className="px-6 py-4 text-center">
                   <button onClick={() => setViewModalData(req)} className="text-blue-600 hover:text-blue-800 flex items-center justify-center gap-1 text-xs font-medium mx-auto bg-blue-50 px-3 py-1.5 rounded-md hover:bg-blue-100 transition-colors">
                     <Eye size={14} /> Ver
                   </button>
+                  {!isHistory && canEdit(req) && <button onClick={() => setEditingGuide(req)} className="mt-2 mx-auto flex items-center justify-center gap-1 rounded-md bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100"><FileEdit size={14} /> Editar guía</button>}
                 </td>
               </tr>
             ))}
@@ -72,7 +74,7 @@ export default function ApplicantPanel({ view, requests, setRequests, updateRequ
         </table>
       </div>
       {isModalOpen && <NewRequestModal onClose={() => setIsModalOpen(false)} onSubmit={handleSubmit} />}
-      {viewModalData && <ViewRequestModal data={viewModalData} onClose={() => setViewModalData(null)} onView={setViewingGuide} onEdit={(request) => { setViewModalData(null); setEditingGuide(request); }} />}
+      {viewModalData && <ViewRequestModal data={viewModalData} editable={canEdit(viewModalData)} onClose={() => setViewModalData(null)} onView={setViewingGuide} onEdit={(request) => { setViewModalData(null); setEditingGuide(request); }} />}
       {viewingGuide && <GuideViewer data={viewingGuide} onClose={() => setViewingGuide(null)} />}
       {editingGuide && <GuideViewer editable data={editingGuide} onClose={() => setEditingGuide(null)}
         onSaved={itemId => onWorkbookSaved(editingGuide.id, itemId)}
@@ -132,7 +134,7 @@ function NewRequestModal({ onClose, onSubmit }) {
   );
 }
 
-function ViewRequestModal({ data, onClose, onEdit, onView }) {
+function ViewRequestModal({ data, editable, onClose, onEdit, onView }) {
   return (
     <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden">
@@ -142,7 +144,7 @@ function ViewRequestModal({ data, onClose, onEdit, onView }) {
         </div>
         <div className="p-6 space-y-5">
           <div className="flex justify-between items-start">
-            <div><p className="text-xs text-slate-500 uppercase font-bold mb-1">Estado</p><StatusBadge status={data.stage === 'CANCELADA' ? data.stage : data.status} /></div>
+            <div><p className="text-xs text-slate-500 uppercase font-bold mb-1">Estado</p><StatusBadge status={data.stage} /></div>
             <div className="text-right"><p className="text-xs text-slate-500 uppercase font-bold mb-1">Fecha</p><p className="text-sm font-medium">{data.date}</p></div>
           </div>
           <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 space-y-4">
@@ -153,7 +155,7 @@ function ViewRequestModal({ data, onClose, onEdit, onView }) {
             </div>
             <div><p className="text-xs text-slate-500 uppercase font-bold mb-1">Justificación</p><p className="text-sm bg-white p-3 border rounded">{data.justification}</p></div>
           </div>
-          {['EN_EDICION', 'OBSERVADA_JEFATURA', 'OBSERVADA_ASC_TECNICA'].includes(data.stage) && (
+          {editable && (
             <div className="border border-emerald-200 bg-emerald-50 rounded-lg p-4">
               <h4 className="text-sm font-bold text-emerald-800 mb-2 flex items-center gap-2"><FileEdit size={16} /> Editable disponible</h4>
               <p className="mb-3 text-xs text-emerald-800">Edita la guía y envía la versión guardada a Jefatura.</p>
