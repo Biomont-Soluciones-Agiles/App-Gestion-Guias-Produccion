@@ -31,9 +31,10 @@ export default function CompareGuide({data,onClose}){
   return <div className="fixed inset-0 z-[60] flex flex-col bg-slate-100">
     <header className="flex flex-wrap items-center justify-between gap-3 border-b bg-white px-5 py-3"><div><h2 className="text-lg font-bold">Comparar versiones</h2><p className="text-sm text-slate-600">{data.guide}</p></div><button className="rounded border px-4 py-2" onClick={onClose}>Cerrar</button></header>
     <div className="flex flex-wrap gap-4 bg-white px-5 py-2 text-sm"><span>🟨 Modificado o agregado</span><span>❌ Eliminado</span></div>
+    {result?.referenceIsCurrentCatalog && <p role="status" className="mx-3 mt-3 rounded border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900">Esta solicitud es anterior al registro de versiones. Se compara con el archivo actual del catálogo de SharePoint, que pudo cambiar desde la solicitud.</p>}
     {error?<p role="alert" className="m-5 rounded bg-red-50 p-4 text-red-800">{error}</p>:!result?<p className="p-5">Cargando versiones...</p>:<>
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 p-3 md:grid-cols-2">
-        {[['Versión anterior',result.before,oldMarks],['Nueva versión',result.after,newMarks]].map(([title,view,marks])=><section key={title} className="flex min-h-0 flex-col overflow-hidden rounded border bg-white"><h3 className="bg-slate-800 px-4 py-2 font-semibold text-white">{title}</h3><WorksheetGrid key={title+view.name} sheet={view} readOnly changes={{}} marks={marks}/></section>)}
+        {[[result.referenceIsCurrentCatalog?'Guía actual del catálogo':'Versión anterior',result.before,oldMarks],['Nueva versión',result.after,newMarks]].map(([title,view,marks])=><section key={title} className="flex min-h-0 flex-col overflow-hidden rounded border bg-white"><h3 className="bg-slate-800 px-4 py-2 font-semibold text-white">{title}</h3><WorksheetGrid key={title+view.name} sheet={view} readOnly changes={{}} marks={marks}/></section>)}
       </div>
       <nav className="flex gap-1 overflow-x-auto bg-white px-3 py-2">{result.sheets.map(name=><button key={name} onClick={()=>setSheet(name)} className={'rounded px-3 py-1 text-sm '+(name===result.after.name?'bg-blue-100 font-semibold text-blue-800':'text-slate-600')}>{name}</button>)}</nav>
     </>}
