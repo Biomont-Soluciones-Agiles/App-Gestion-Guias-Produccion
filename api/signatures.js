@@ -1,7 +1,7 @@
 const {session,hasRole}=require('./_auth');
 const {getRequest,fail}=require('../lib/request-state');
 const {readDraft,writeDraft,deleteDraft}=require('../lib/draft-storage');
-const {stampSignature}=require('../lib/signature-stamp');
+const {decorateRouteWorkbook}=require('../lib/route-workbook');
 const {publishGuide}=require('../lib/publish-guide');
 
 const base=()=>process.env.SUPABASE_URL+'/rest/v1/';
@@ -83,8 +83,7 @@ module.exports=async(req,res)=>{
       const row=await getRequest(id);
       if(!row.draft_object_path) throw fail(409,'La guía no tiene un borrador disponible para firmar.');
       const now=new Date().toISOString();
-      const signed=route.guide_signature_members.filter(m=>m.step===step && m.signed_at);
-      const updated=await stampSignature(await readDraft(row.draft_object_path),step,[...signed,{...member,signed_at:now}]);
+      const updated=await decorateRouteWorkbook(await readDraft(row.draft_object_path),route.guide_signature_members.map(m=>m===member?{...m,signed_at:now}:m));
       const nextPath=await writeDraft(row.id,'versions',updated);
       let nextStep;
       try {

@@ -6,6 +6,7 @@ const {readDraft,writeDraft,deleteDraft} = require('../lib/draft-storage');
 const {hasSignatureAccess} = require('../lib/signature-access');
 const {openWorkbook} = require('../lib/workbook');
 const {recalculate} = require('../lib/recalculate');
+const {decorateRouteWorkbook} = require('../lib/route-workbook');
 
 module.exports = async (req,res) => {
   res.setHeader('Cache-Control','private, no-store');
@@ -57,7 +58,15 @@ module.exports = async (req,res) => {
     }
     if (!editing && !row.draft_object_path) return res.json({webUrl});
     if (!editing && row.draft_object_path) {
-      const saved=openWorkbook(await readDraft(row.draft_object_path));
+      let bytes=await readDraft(row.draft_object_path);
+      if(row.workflow_stage==='APROBADA_TECNICA') {
+        const params=new URLSearchParams({request_id:'eq.'+row.id,select:'step,guide_signature_members(*)',limit:'1'});
+        const response=await fetch(process.env.SUPABASE_URL+'/rest/v1/guide_signature_routes?'+params,{headers:{apikey:process.env.SUPABASE_SECRET_KEY,Authorization:'Bearer '+process.env.SUPABASE_SECRET_KEY}});
+        if(!response.ok) throw fail(502,'No se pudo consultar el estado de las firmas.');
+        const [route]=await response.json();
+        if(route && route.step!=='Publicada') bytes=await decorateRouteWorkbook(bytes,route.guide_signature_members);
+      }
+      const saved=openWorkbook(bytes);
       return res.json({sheets:saved.sheets,sheet:saved.inspect(req.query.sheet || saved.sheets[0])});
     }
     if (item.size > 12 * 1024 * 1024) throw fail(413,'El libro excede el límite de edición de 12 MB.');

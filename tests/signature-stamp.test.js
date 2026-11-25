@@ -3,6 +3,7 @@ const assert=require('node:assert/strict');
 const XLSX=require('xlsx');
 const {stampSignature}=require('../lib/signature-stamp');
 const {openWorkbook}=require('../lib/workbook');
+const {decorateRouteWorkbook}=require('../lib/route-workbook');
 
 test('coloca firmas en la guía y conserva todas las personas sin duplicar la imagen',async()=>{
   const book=XLSX.utils.book_new();
@@ -18,6 +19,17 @@ test('coloca firmas en la guía y conserva todas las personas sin duplicar la im
   const view=openWorkbook(second).inspect('Guía');
   assert.equal(view.cells.find(c=>c.address==='F7').value,'Ana Prueba / José Prueba');
   assert.equal(view.images.filter(image=>image.name==='BiomontFirma_Revision').length,1);
+});
+test('muestra los participantes seleccionados y conserva las firmas ya realizadas',async()=>{
+  const book=XLSX.utils.book_new(),rows=Array.from({length:9},()=>Array(11).fill(''));
+  rows[5][1]='Elaborado por:';rows[5][5]='Revisado por:';rows[5][7]='Aprobado por:';
+  rows[6][1]='Antiguo';rows[6][5]='Antiguo';rows[6][7]='Antiguo';
+  XLSX.utils.book_append_sheet(book,XLSX.utils.aoa_to_sheet(rows),'Guía');
+  const members=[{step:'Elaborador',display_name:'Manuel Olin',signed_at:'2026-11-25T18:00:00Z'},{step:'Revision',display_name:'José Núñez',signed_at:null},{step:'Aprobacion',display_name:'María Pérez',signed_at:null}];
+  const result=await decorateRouteWorkbook(XLSX.write(book,{type:'buffer',bookType:'xlsx'}),members);
+  const view=openWorkbook(result).inspect('Guía');
+  for(const [address,name] of [['B7','Manuel Olin'],['F7','José Núñez'],['H7','María Pérez']]) assert.equal(view.cells.find(cell=>cell.address===address).value,name);
+  assert.equal(view.images.filter(image=>image.name==='BiomontFirma_Elaborador').length,1);
 });
 test('rechaza una guía sin los recuadros esperados',async()=>{
   const book=XLSX.utils.book_new();XLSX.utils.book_append_sheet(book,XLSX.utils.aoa_to_sheet([['Guía']]),'Hoja');
