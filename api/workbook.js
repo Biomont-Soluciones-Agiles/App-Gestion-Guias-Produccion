@@ -1,5 +1,5 @@
 const crypto = require('node:crypto');
-const {session} = require('./_auth');
+const {session,hasRole} = require('./_auth');
 const {connectLibrary} = require('../lib/sharepoint');
 const {getRequest, canEdit, commit, fail} = require('../lib/request-state');
 const {readDraft,writeDraft,deleteDraft} = require('../lib/draft-storage');
@@ -10,12 +10,13 @@ module.exports = async (req,res) => {
   res.setHeader('Cache-Control','private, no-store');
   const user=session(req);
   if (!user) return res.status(401).json({error:'Inicia sesión nuevamente.'});
+  if (!['Responsable','Jefatura','ASC'].some(role => hasRole(user,role))) return res.status(403).json({error:'No tienes acceso a esta guía.'});
   try {
     if (!['GET','POST'].includes(req.method)) throw fail(405,'Método no permitido.');
     const row=await getRequest(req.query.id);
     if (!row.sharepoint_item_id) throw fail(404,'La solicitud carece de archivo de SharePoint.');
     const comparing=req.query.compare==='1';
-    if (comparing && !['Jefatura','Administrador'].includes(user.role)) throw fail(403,'Acceso reservado a Jefatura.');
+    if (comparing && !hasRole(user,'Jefatura')) throw fail(403,'Acceso reservado a Jefatura.');
     const editing=req.method==='POST' || req.query.edit==='1';
     if (editing && !canEdit(user,row)) throw fail(403,'La edición está cerrada para esta solicitud o este usuario.');
     const library=await connectLibrary();

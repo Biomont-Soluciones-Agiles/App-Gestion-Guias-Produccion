@@ -1,9 +1,11 @@
-const { session } = require('./_auth');
+const { session, hasRole } = require('./_auth');
 
 const { connectLibrary, draftPrefix } = require('../lib/sharepoint');
 
 module.exports = async (req, res) => {
-  if (!session(req)) return res.status(401).json({ error: 'Sesión requerida.' });
+  const user = session(req);
+  if (!user) return res.status(401).json({ error: 'Sesión requerida.' });
+  if (!['Responsable','Jefatura','ASC'].some(role => hasRole(user,role))) return res.status(403).json({ error: 'No tienes acceso al catálogo.' });
   try {
     const { site, drive, json } = await connectLibrary();
     const items = [];

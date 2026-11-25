@@ -3,7 +3,8 @@ import { ClipboardList, FileEdit, History, LogOut, SearchCheck, Settings, Headph
 
 const navigation = {
   Responsable: [{ id: 'main', label: 'Mis solicitudes', icon: ClipboardList }, { id: 'shared', label: 'Guías compartidas', icon: FileEdit }, { id: 'history', label: 'Historial', icon: History }],
-  ASC: [{ id: 'main', label: 'Solicitudes iniciales', icon: ClipboardList }, { id: 'technical', label: 'Revisión técnica', icon: SearchCheck }, { id: 'history', label: 'Historial de decisiones', icon: History }],
+  ASC: [{ id: 'main', label: 'Solicitudes iniciales', icon: ClipboardList }, { id: 'technical', label: 'Revisión técnica', icon: SearchCheck }, { id: 'history', label: 'Historial de decisiones', icon: History }, { id: 'settings', label: 'Configuración funcional', icon: Settings }],
+  Participante: [{ id: 'main', label: 'Firmas pendientes', icon: ClipboardList }],
   Jefatura: [{ id: 'main', label: 'Revisiones pendientes', icon: ClipboardList }, { id: 'history', label: 'Historial de revisiones', icon: History }]
 };
 
