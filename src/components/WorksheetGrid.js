@@ -141,7 +141,7 @@ function SheetPicture({image,edit,x,y,disabled,selected,onSelect,onChange,onDese
   }
   function remove() {
     if(disabled) return;
-    if(window.confirm('Â¿Eliminar esta imagen de la versiÃ³n en ediciÃ³n?')) {
+    if(window.confirm('¿Eliminar esta imagen de la versión en edición?')) {
       onChange({action:'delete'});onDeselect();
     }
   }
