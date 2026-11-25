@@ -60,7 +60,7 @@ export default function ApplicantPanel({ view, requests, setRequests, updateRequ
                 <td className="px-6 py-4">
                   <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded text-xs font-medium">{req.type}</span>
                 </td>
-                <td className="px-6 py-4"><StatusBadge status={req.status} /></td>
+                <td className="px-6 py-4"><StatusBadge status={req.stage === 'CANCELADA' ? req.stage : req.status} /></td>
                 <td className="px-6 py-4 text-center">
                   <button onClick={() => setViewModalData(req)} className="text-blue-600 hover:text-blue-800 flex items-center justify-center gap-1 text-xs font-medium mx-auto bg-blue-50 px-3 py-1.5 rounded-md hover:bg-blue-100 transition-colors">
                     <Eye size={14} /> Ver
@@ -142,7 +142,7 @@ function ViewRequestModal({ data, onClose, onEdit, onView }) {
         </div>
         <div className="p-6 space-y-5">
           <div className="flex justify-between items-start">
-            <div><p className="text-xs text-slate-500 uppercase font-bold mb-1">Estado</p><StatusBadge status={data.status} /></div>
+            <div><p className="text-xs text-slate-500 uppercase font-bold mb-1">Estado</p><StatusBadge status={data.stage === 'CANCELADA' ? data.stage : data.status} /></div>
             <div className="text-right"><p className="text-xs text-slate-500 uppercase font-bold mb-1">Fecha</p><p className="text-sm font-medium">{data.date}</p></div>
           </div>
           <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 space-y-4">
