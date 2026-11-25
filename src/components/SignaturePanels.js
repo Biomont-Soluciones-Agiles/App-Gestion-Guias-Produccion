@@ -29,7 +29,7 @@ export function SignaturesPanel() {
 }
 
 export function SignatureRoutesPanel({requests}) {
-  const [selected,setSelected]=useState(null),[options,setOptions]=useState(null),[reviewers,setReviewers]=useState([]),[approvers,setApprovers]=useState([]),[error,setError]=useState(''),[busy,setBusy]=useState(false);
+  const [selected,setSelected]=useState(null),[options,setOptions]=useState(null),[reviewers,setReviewers]=useState([]),[approvers,setApprovers]=useState([]),[error,setError]=useState(''),[busy,setBusy]=useState(false),[viewer,setViewer]=useState(null);
   const rows=requests.filter(item=>item.stage==='APROBADA_TECNICA');
   async function open(item) {
     setSelected(item);setOptions(null);setReviewers([]);setApprovers([]);setError('');
@@ -48,7 +48,7 @@ export function SignatureRoutesPanel({requests}) {
   }
   return <section className="mx-auto max-w-6xl"><h2 className="text-2xl font-bold text-slate-800">Rutas de firma</h2>
     <div className="mt-6 overflow-auto rounded-xl border"><table className="w-full text-left text-sm"><thead className="bg-slate-50"><tr><th className="p-4">Solicitud</th><th>Guía</th><th>Acciones</th></tr></thead>
-      <tbody>{rows.length?rows.map(item=><tr key={item.id} className="border-t"><td className="p-4">{item.id}</td><td>{item.guide}</td><td><button onClick={()=>open(item)} className="rounded bg-blue-700 px-3 py-2 text-white">Ruta de firma</button></td></tr>):<tr><td colSpan="3" className="p-10 text-center text-slate-500">No hay guías aprobadas para firma.</td></tr>}</tbody></table></div>
+      <tbody>{rows.length?rows.map(item=><tr key={item.id} className="border-t"><td className="p-4">{item.id}</td><td>{item.guide}</td><td><div className="flex flex-wrap gap-2 py-2"><button onClick={()=>open(item)} className="rounded bg-blue-700 px-3 py-2 text-white">Ruta de firma</button><button onClick={()=>setViewer(item)} className="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-blue-700 hover:bg-blue-100">Ver guía y firmas</button></div></td></tr>):<tr><td colSpan="3" className="p-10 text-center text-slate-500">No hay guías aprobadas para firma.</td></tr>}</tbody></table></div>
     {selected && <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/50 p-4"><div className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-xl bg-white p-6">
       <div className="flex items-center justify-between gap-3"><h3 className="text-lg font-bold">Ruta de firma · {selected.guide}</h3><button onClick={()=>setSelected(null)} className="rounded border px-3 py-2">Cerrar</button></div>
       {error && <p role="alert" className="mt-4 rounded bg-red-50 p-3 text-sm text-red-700">{error}</p>}
@@ -58,5 +58,6 @@ export function SignatureRoutesPanel({requests}) {
       {[[ 'Responsables de revisión', options.participants.filter(p=>p.can_review),reviewers,setReviewers ],['Aprobadores',options.participants.filter(p=>p.can_approve),approvers,setApprovers]].map(([title,people,values,setValues])=><fieldset key={title} className="mt-5 rounded border p-4"><legend className="px-1 font-semibold">{title}</legend>{people.length?people.map(person=><label key={person.email} className="flex gap-2 py-1 text-sm"><input type="checkbox" checked={values.includes(person.email)} onChange={()=>toggle(person.email,values,setValues)}/>{person.display_name} · {person.email}</label>):<p className="text-sm text-slate-500">No hay participantes habilitados para esta etapa.</p>}</fieldset>)}
       <button disabled={busy || !options.requester || !reviewers.length || !approvers.length} onClick={start} className="mt-5 rounded bg-blue-700 px-4 py-2 font-semibold text-white disabled:opacity-50">Iniciar ruta</button></>}</>}
     </div></div>}
+    {viewer && <GuideViewer data={viewer} onClose={()=>setViewer(null)}/>}
   </section>;
 }
