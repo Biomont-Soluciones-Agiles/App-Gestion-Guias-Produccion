@@ -2,10 +2,11 @@ const {session,hasRole}=require('./_auth');
 const {getRequest,fail}=require('../lib/request-state');
 const {readDraft,writeDraft,deleteDraft}=require('../lib/draft-storage');
 const {decorateRouteWorkbook}=require('../lib/route-workbook');
-const {publishGuide}=require('../lib/publish-guide');
 const {listComboGuides,commitComboGuide}=require('../lib/combo-guides');
-const {prepareComboPublication,publishPreparedCombo}=require('../lib/combo-publication');
 const {connectLibrary}=require('../lib/sharepoint');
+const {prepareTemporaryPublication,publishTemporaryPlan}=require('../lib/publish-temporary');
+const {temporaryGuideInfo}=require('../lib/temporary-guide-info');
+const {temporaryColumns,temporaryFields}=require('../lib/temporary-metadata');
 
 const base=()=>process.env.SUPABASE_URL+'/rest/v1/';
 const headers=()=>({apikey:process.env.SUPABASE_SECRET_KEY,Authorization:'Bearer '+process.env.SUPABASE_SECRET_KEY,'Content-Type':'application/json'});
@@ -31,6 +32,7 @@ async function membership(user,id) {
   return route;
 }
 async function publish(id,route) {
+  const request=await getRequest(id);
   const guides=await listComboGuides(id);
   async function markRoute(itemId) {
     const rows=await query('guide_signature_routes?'+filter('request_id',id)+'&step=eq.Lista%20para%20publicar',{
@@ -38,16 +40,25 @@ async function publish(id,route) {
     });
     if(!rows.length && (await getRoute(id))?.step!=='Publicada') throw fail(409,'No se pudo registrar la publicación. Vuelve a intentarlo.');
   }
-  if(guides.length) {
+  if(request.guide_type==='Guía temporal' && request.requires_modifications===true) {
     if(route.step==='Publicada') return;
     if(route.step!=='Lista para publicar') throw fail(409,'La ruta de firmas aún no ha terminado.');
-    const library=await connectLibrary();
-    const prepared=await prepareComboPublication(guides,library,readDraft);
-    await publishPreparedCombo(prepared,library,async guide=>{
-      if(guide.publication_state!=='Publicada') await commitComboGuide(guide,{publication_state:'Publicada',published_at:new Date().toISOString()});
+    const sourceLibrary=await connectLibrary('standard'),temporaryLibrary=await connectLibrary('temporary');
+    const columns=temporaryColumns(await temporaryLibrary.columns());
+    const plan=await prepareTemporaryPublication(guides.length?guides:[request],sourceLibrary,temporaryLibrary,readDraft,(guide,bytes)=>temporaryGuideInfo(bytes,guide.guide_name));
+    for(const entry of plan) entry.metadata=temporaryFields(columns,entry.guide,entry.details);
+    let publishedItem;
+    await publishTemporaryPlan(plan,temporaryLibrary,async (guide,item,details)=>{
+      const metadata=temporaryFields(columns,guide,details);
+      await temporaryLibrary.updateFields(item.id,metadata);
+      if(guides.length && guide.publication_state!=='Publicada') await commitComboGuide(guide,{publication_state:'Publicada',published_at:new Date().toISOString(),published_item_id:item.id});
+      publishedItem=item.id;
     });
-    await markRoute(null);
-  } else await publishGuide(await getRequest(id),route,markRoute);
+    await markRoute(guides.length?null:publishedItem);
+  } else if(route.step!=='Publicada') {
+    // Sin biblioteca de historial configurada, no se reemplaza la versión oficial.
+    throw fail(409,'La publicación oficial está pendiente: falta configurar la biblioteca de historial de versiones.');
+  }
 }
 module.exports=async(req,res)=>{
   res.setHeader('Cache-Control','no-store');

@@ -14,6 +14,7 @@ test('muestra los datos de cada guía seleccionada y los quita al retirarla',asy
   try {
     await act(async()=>root.render(<ApplicantPanel view="main" requests={[]} user={{role:'Responsable',email:'usuario@biomont.com.pe'}}/>));
     await act(async()=>Array.from(host.querySelectorAll('button')).find(button=>button.textContent.includes('Nueva Solicitud')).click());
+    await act(async()=>{const radio=host.querySelector('input[name="guide-type"]');radio.checked=true;Simulate.change(radio);});
     const search=host.querySelector('#combo-search');
     await act(async()=>{search.value='Proteggo';Simulate.change(search);});
     await act(async()=>Array.from(host.querySelectorAll('button')).find(button=>button.textContent.includes('Proteggo F.xlsx')).click());
@@ -36,6 +37,7 @@ test('ASC puede seleccionar un emisor y asignar la guía',async()=>{
     await act(async()=>root.render(<NewRequestModal assigning onClose={()=>{}} onSubmit={submit}/>));
     const select=host.querySelector('#assigned-emitter');
     await act(async()=>{select.value='ana@biomont.com.pe';Simulate.change(select);});
+    await act(async()=>{const radio=host.querySelector('input[name="guide-type"]');radio.checked=true;Simulate.change(radio);});
     const search=host.querySelector('#combo-search');
     await act(async()=>{search.value='Producto';Simulate.change(search);});
     await act(async()=>Array.from(host.querySelectorAll('button')).find(button=>button.textContent.includes('Guía.xlsx')).click());
@@ -43,4 +45,37 @@ test('ASC puede seleccionar un emisor y asignar la guía',async()=>{
     await act(async()=>Simulate.submit(host.querySelector('#new-req-form')));
     expect(submit).toHaveBeenCalledWith(expect.objectContaining({emitter:'ana@biomont.com.pe',guides:[expect.objectContaining({id:'archivo'})]}));
   } finally {await act(async()=>root.unmount());host.remove();global.fetch=previous;}
+});
+
+test('la pregunta adicional aparece solo para guías temporales y cambia el catálogo',async()=>{
+  global.IS_REACT_ACT_ENVIRONMENT=true;
+  const previous=global.fetch,host=document.createElement('div');document.body.appendChild(host);
+  global.fetch=jest.fn(async()=>({ok:true,json:async()=>({guides:[]})}));const root=createRoot(host);
+  try {
+    await act(async()=>root.render(<NewRequestModal onClose={()=>{}} onSubmit={()=>{}}/>));
+    expect(host.textContent).not.toContain('¿Requiere modificaciones?');
+    const type=Array.from(host.querySelectorAll('label')).find(label=>label.textContent==='Guía temporal').querySelector('input');
+    await act(async()=>{type.checked=true;Simulate.change(type);});
+    expect(host.textContent).toContain('¿Requiere modificaciones?');
+    const no=Array.from(host.querySelectorAll('label')).find(label=>label.textContent==='No').querySelector('input');
+    await act(async()=>{no.checked=true;Simulate.change(no);});
+    expect(global.fetch.mock.calls.some(([url])=>String(url).includes('source=temporary'))).toBe(true);
+    const other=Array.from(host.querySelectorAll('label')).find(label=>label.textContent==='Guía oficial').querySelector('input');
+    await act(async()=>{other.checked=true;Simulate.change(other);});
+    expect(host.textContent).not.toContain('¿Requiere modificaciones?');
+  } finally {await act(async()=>root.unmount());host.remove();global.fetch=previous;}
+});
+
+test('una guía temporal compartida permite consulta y no muestra edición',async()=>{
+  global.IS_REACT_ACT_ENVIRONMENT=true;
+  const host=document.createElement('div');document.body.appendChild(host);const root=createRoot(host);
+  const request={id:'REQ-1',dbId:'uno',guide:'Temporal.xlsx',stage:'TEMPORAL_COMPARTIDA',type:'Guía temporal',guides:[],history:[]};
+  try {
+    await act(async()=>root.render(<ApplicantPanel view="main" requests={[request]} user={{role:'Responsable',email:'usuario@biomont.com.pe'}}/>));
+    expect(host.textContent).toContain('Guía temporal compartida');
+    expect(host.textContent).not.toContain('Editar guía');
+    await act(async()=>Array.from(host.querySelectorAll('button')).find(button=>button.textContent.trim()==='Ver').click());
+    expect(host.textContent).toContain('Ver guía temporal');
+    expect(host.textContent).not.toContain('Editar guía');
+  } finally {await act(async()=>root.unmount());host.remove();}
 });

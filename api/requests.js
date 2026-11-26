@@ -5,6 +5,8 @@ const {approveTechnical,approveComboTechnical} = require('../lib/technical-appro
 const {approveInitial,prepareDraft}=require('../lib/initial-approval');
 const {deleteDraft}=require('../lib/draft-storage');
 const {randomUUID}=require('node:crypto');
+const {catalogFolder}=require('../lib/guide-catalog-folder');
+const {fieldValue}=require('../lib/sharepoint-fields');
 const {validateComboSelection,listComboGuides}=require('../lib/combo-guides');
 const url = () => `${process.env.SUPABASE_URL}/rest/v1`;
 const headers = () => ({ apikey: process.env.SUPABASE_SECRET_KEY, Authorization: `Bearer ${process.env.SUPABASE_SECRET_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=representation' });
@@ -51,26 +53,32 @@ module.exports = async (req, res) => {
       if (action === 'create' || action === 'assign') {
         const assigning=action==='assign';
         if (assigning ? !hasRole(user,'ASC') : !hasRole(user,'Responsable')) throw fail(403,'No tienes permiso para esta operación.');
-        const allowed = ['request_code','sharepoint_item_id','guide_name','product','production_line','production_phase','requester_area','request_reason','guide_type','justification'];
+        const allowed = ['request_code','sharepoint_item_id','guide_name','product','production_line','production_phase','requester_area','request_reason','guide_type','requires_modifications','justification'];
         const fields = Object.fromEntries(allowed.map(key => [key, request?.[key]]));
+        if(!['Guía monitorizada','Producto nuevo','Guía oficial','Guía temporal'].includes(fields.guide_type)) throw fail(400,'Selecciona un tipo de guía válido.');
+        if(fields.guide_type==='Guía temporal' && typeof fields.requires_modifications!=='boolean') throw fail(400,'Indica si la guía temporal requiere modificaciones.');
+        if(fields.guide_type!=='Guía temporal') fields.requires_modifications=null;
+        const source=fields.guide_type==='Guía temporal' && fields.requires_modifications===false?'temporary':'standard';
         if(assigning || (Array.isArray(req.body.guides) && req.body.guides.length>1)) {
           const input=req.body.guides;
           const ids=Array.isArray(input) && input.length===1 && /^[A-Za-z0-9_-]+$/.test(input[0]?.sharepoint_item_id || '') ? [input[0].sharepoint_item_id] : validateComboSelection(input);
           const emitter=String(req.body.emitter || '').trim().toLowerCase();
           if(assigning && !/^[^\s@]+@biomont\.com\.pe$/.test(emitter)) throw fail(400,'Selecciona un emisor válido.');
-          const library=await connectLibrary();
-          const root=await library.json('/drives/'+library.drive.id+'/root?$select=id');
+          const library=await connectLibrary(source);
+          const root=await catalogFolder(library,source);
           const guides=[];
           for(const id of ids) {
             const source=await library.json('/drives/'+library.drive.id+'/items/'+encodeURIComponent(id)+'?$select=id,name,file,parentReference&$expand=listItem($expand=fields)');
             if(!source.file || !/\.xlsx$/i.test(source.name) || source.name.startsWith(draftPrefix) || source.parentReference?.id!==root.id) throw fail(400,'Una de las guías no pertenece al catálogo de SharePoint.');
             const meta=source.listItem?.fields || {};
+            if(fields.guide_type==='Guía temporal' && fields.requires_modifications===false && (String(fieldValue(meta,['Estado'])).toLowerCase()!=='habilitado' || String(fieldValue(meta,['TipoGuia'])).toLowerCase()!=='temporal')) throw fail(409,'Una de las guías temporales ya no está habilitada.');
+            if(!(fields.guide_type==='Guía temporal' && fields.requires_modifications===false) && (String(fieldValue(meta,['Estado'])).toLowerCase()!=='habilitado' || String(fieldValue(meta,['TipoGuia'])).toLowerCase()!=='oficial')) throw fail(409,'Una guía seleccionada ya no figura como oficial habilitada.');
             guides.push({sharepoint_item_id:id,guide_name:source.name,product:meta.Producto || '',production_phase:meta.FaseProduccion || '',production_line:meta.LineaProd || meta.LineaProduccion || ''});
           }
           Object.assign(fields,guides[0]);
           const draftPaths=[];let committing=false;
           try {
-            if(assigning) {
+            if(assigning && !(fields.guide_type==='Guía temporal' && fields.requires_modifications===false)) {
               const storageId=randomUUID();
               for(const guide of guides) {
                 const version=await prepareDraft(storageId,guide,library,draftPaths);
@@ -90,10 +98,12 @@ module.exports = async (req, res) => {
           }
         }
         if (!/^[A-Za-z0-9_-]+$/.test(fields.sharepoint_item_id || '')) throw fail(400,'Selecciona una guía del catálogo.');
-        const library = await connectLibrary();
-        const [source,root] = await Promise.all([library.item(fields.sharepoint_item_id), library.json('/drives/'+library.drive.id+'/root?$select=id')]);
-        if (!source.file || !/\.xlsx$/i.test(source.name) || source.name.startsWith(draftPrefix) || source.parentReference?.id !== root.id) throw fail(400,'Selecciona un Excel del catálogo.');
-        fields.guide_name = source.name;
+        const library = await connectLibrary(source);
+        const [file,root] = await Promise.all([library.json('/drives/'+library.drive.id+'/items/'+encodeURIComponent(fields.sharepoint_item_id)+'?$select=id,name,file,parentReference&$expand=listItem($expand=fields)'), catalogFolder(library,source)]);
+        if (!file.file || !/\.xlsx$/i.test(file.name) || file.name.startsWith(draftPrefix) || file.parentReference?.id !== root.id) throw fail(400,'Selecciona un Excel del catálogo correspondiente.');
+        if(source==='temporary' && (String(fieldValue(file.listItem?.fields,['Estado'])).toLowerCase()!=='habilitado' || String(fieldValue(file.listItem?.fields,['TipoGuia'])).toLowerCase()!=='temporal')) throw fail(409,'La guía temporal ya no está habilitada.');
+        if(source==='standard' && (String(fieldValue(file.listItem?.fields,['Estado'])).toLowerCase()!=='habilitado' || String(fieldValue(file.listItem?.fields,['TipoGuia'])).toLowerCase()!=='oficial')) throw fail(409,'La guía ya no figura como oficial habilitada.');
+        fields.guide_name = file.name;
         const response = await fetch(`${url()}/production_requests`, { method: 'POST', headers: headers(), body: JSON.stringify(fields) });
         const rows = await response.json();
         if (!response.ok) return send(res, response.status, rows);
@@ -104,12 +114,22 @@ module.exports = async (req, res) => {
         const row=await getRequest(id);
         const guides=await listComboGuides(String(id));
         const transitions = {
-          PENDIENTE_ASC_INICIAL: ['ASC','EN_EDICION','RECHAZADA_ASC_INICIAL'],
+          PENDIENTE_ASC_INICIAL: ['ASC','EN_EDICION','TEMPORAL_COMPARTIDA','RECHAZADA_ASC_INICIAL'],
           PENDIENTE_JEFATURA: ['Jefatura','PENDIENTE_ASC_TECNICA','OBSERVADA_JEFATURA'],
           PENDIENTE_ASC_TECNICA: ['ASC','APROBADA_TECNICA','OBSERVADA_ASC_TECNICA']
         };
         const [role,...targets] = editable.includes(row.workflow_stage) ? ['Responsable','PENDIENTE_JEFATURA'] : transitions[row.workflow_stage] || [];
         if (!targets.includes(stage) || actor !== role || !hasRole(user,role)) throw fail(403,'La transición solicitada no está disponible.');
+        const sharedTemporary=row.guide_type==='Guía temporal' && row.requires_modifications===false;
+        if(row.guide_type==='Guía temporal' && row.requires_modifications==null && row.workflow_stage==='PENDIENTE_ASC_INICIAL') throw fail(409,'La solicitud temporal no indica si requiere modificaciones.');
+        if(row.workflow_stage==='PENDIENTE_ASC_INICIAL' && (stage==='EN_EDICION' || stage==='TEMPORAL_COMPARTIDA') && ((stage==='TEMPORAL_COMPARTIDA')!==sharedTemporary)) throw fail(409,'El flujo no coincide con el tipo de guía temporal.');
+        if(row.workflow_stage==='PENDIENTE_ASC_INICIAL' && stage==='TEMPORAL_COMPARTIDA') {
+          const library=await connectLibrary('temporary'),root=await catalogFolder(library,'temporary');
+          for(const guide of guides.length?guides:[row]) {
+            const item=await library.json('/drives/'+library.drive.id+'/items/'+encodeURIComponent(guide.sharepoint_item_id)+'?$select=id,file,parentReference&$expand=listItem($expand=fields)');
+            if(!item.file || item.parentReference?.id!==root.id || (String(fieldValue(item.listItem?.fields,['Estado'])).toLowerCase()!=='habilitado' || String(fieldValue(item.listItem?.fields,['TipoGuia'])).toLowerCase()!=='temporal')) throw fail(409,'Una guía temporal ya no está habilitada. Revisa la solicitud antes de aprobar.');
+          }
+        }
         if (role === 'Responsable' && (!canEdit(user,row) || (!guides.length && itemId !== row.sharepoint_item_id))) throw fail(409,'La versión cambió o la edición está cerrada. Vuelve a abrir la guía.');
         if(guides.length && role==='Responsable' && guides.some(guide=>!guide.baseline_object_path || !guide.draft_object_path)) throw fail(409,'Guarda cada guía del combo antes de enviarlo a Jefatura.');
         let saved;

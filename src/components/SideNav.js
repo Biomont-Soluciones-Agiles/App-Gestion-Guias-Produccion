@@ -3,7 +3,7 @@ import { ClipboardList, History, LogOut, SearchCheck, Settings, Headphones, PenT
 
 const navigation = {
   Responsable: [{ id: 'main', label: 'Mis solicitudes', icon: ClipboardList }, { id: 'signatures', label: 'Mis firmas', icon: PenTool }, { id: 'history', label: 'Historial', icon: History }],
-  ASC: [{ id: 'main', label: 'Solicitudes iniciales', icon: ClipboardList }, { id: 'technical', label: 'Revisión técnica', icon: SearchCheck }, { id: 'signature_routes', label: 'Rutas de firma', icon: PenTool }, { id: 'signatures', label: 'Mis firmas', icon: PenTool }, { id: 'history', label: 'Historial de decisiones', icon: History }, { id: 'settings', label: 'Configuración funcional', icon: Settings }],
+  ASC: [{ id: 'main', label: 'Solicitudes iniciales', icon: ClipboardList }, { id: 'technical', label: 'Revisión técnica', icon: SearchCheck }, { id: 'signature_routes', label: 'Rutas de firma', icon: PenTool }, { id: 'temporaries', label: 'Guías temporales', icon: ClipboardList }, { id: 'signatures', label: 'Mis firmas', icon: PenTool }, { id: 'history', label: 'Historial de decisiones', icon: History }, { id: 'settings', label: 'Configuración funcional', icon: Settings }],
   Participante: [{ id: 'main', label: 'Firmas pendientes', icon: ClipboardList }],
   Jefatura: [{ id: 'main', label: 'Revisiones pendientes', icon: ClipboardList }, { id: 'signatures', label: 'Mis firmas', icon: PenTool }, { id: 'history', label: 'Historial de revisiones', icon: History }]
 };

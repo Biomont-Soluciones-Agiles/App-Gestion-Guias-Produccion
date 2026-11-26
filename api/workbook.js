@@ -29,7 +29,7 @@ module.exports = async (req,res) => {
     if (comparing && !hasRole(user,'Jefatura')) throw fail(403,'Acceso reservado a Jefatura.');
     const editing=req.method==='POST' || req.query.edit==='1';
     if (editing && !canEdit(user,row)) throw fail(403,'La edición está cerrada para esta solicitud o este usuario.');
-    const library=await connectLibrary();
+    const library=await connectLibrary(parent.guide_type==='Guía temporal' && parent.requires_modifications===false?'temporary':'standard');
     const item=await library.item(row.sharepoint_item_id);
     if (!item.file || !/\.xlsx$/i.test(item.name)) throw fail(422,'Se requiere un libro XLSX.');
     let webUrl=item.webUrl;
