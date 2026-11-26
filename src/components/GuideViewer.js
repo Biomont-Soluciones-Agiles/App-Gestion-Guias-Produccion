@@ -29,11 +29,11 @@ export default function GuideViewer({data, onClose, editable=false, onSaved, onS
     const controller = new AbortController();
     setBook(null);
     setError('');
-    workbookRequest(data.dbId, editable ? {edit:'1',sheet} : {sheet}, {signal:controller.signal})
+    workbookRequest(data.dbId, {...(editable ? {edit:'1',sheet} : {sheet}),...(data.guideId ? {guideId:data.guideId} : {})}, {signal:controller.signal})
       .then(result => {if (!controller.signal.aborted) setBook(result);})
       .catch(e => {if (!controller.signal.aborted) setError(e.message);});
     return () => controller.abort();
-  },[data.dbId,editable,sheet,reload]);
+  },[data.dbId,data.guideId,editable,sheet,reload]);
   const pending = Object.values(changes);
   function change(address,cell,value) {
     setNotice('');
@@ -55,8 +55,8 @@ export default function GuideViewer({data, onClose, editable=false, onSaved, onS
     setBusy(true); setError('');
     try {
       let itemId=book.itemId;
-      if (pending.length) {
-        const result=await workbookRequest(data.dbId,{}, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({revision:book.revision,changes:pending.map(c=>c.type==='number'?{...c,value:c.value.replace(',','.')}:c)})});
+      if (pending.length || data.guideId) {
+        const result=await workbookRequest(data.dbId,data.guideId ? {guideId:data.guideId} : {}, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({revision:book.revision,changes:pending.map(c=>c.type==='number'?{...c,value:c.value.replace(',','.')}:c)})});
         itemId=result.itemId;
         setChanges({}); onSaved(itemId);
         setNotice('Cambios guardados.');
@@ -72,8 +72,8 @@ export default function GuideViewer({data, onClose, editable=false, onSaved, onS
       <header className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3">
         <div><p className="text-xs text-slate-500">{data.id} · {editable ? 'Edición' : 'Solo lectura'}</p><h3 className="font-bold">{data.guide}</h3></div>
         <div className="flex flex-wrap gap-2 text-sm">
-          {editable && book && <><button disabled={busy || !pending.length} onClick={()=>save(false)} className="rounded bg-blue-700 px-3 py-2 text-white disabled:opacity-50">Guardar cambios</button>
-          <button disabled={busy} onClick={()=>save(true)} className="rounded bg-emerald-700 px-3 py-2 text-white disabled:opacity-50">Enviar a Jefatura</button></>}
+          {editable && book && <><button disabled={busy || (!pending.length && !data.guideId)} onClick={()=>save(false)} className="rounded bg-blue-700 px-3 py-2 text-white disabled:opacity-50">Guardar cambios</button>
+          {onSubmit && <button disabled={busy} onClick={()=>save(true)} className="rounded bg-emerald-700 px-3 py-2 text-white disabled:opacity-50">Enviar a Jefatura</button>}</>}
           <button disabled={busy} onClick={()=>{if (!pending.length || window.confirm('¿Cerrar y descartar los cambios pendientes?')) onClose();}} className="rounded border px-3 py-2">Cerrar</button>
         </div>
       </header>

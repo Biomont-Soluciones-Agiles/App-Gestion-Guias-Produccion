@@ -3,6 +3,9 @@ const {getRequest,fail}=require('../lib/request-state');
 const {readDraft,writeDraft,deleteDraft}=require('../lib/draft-storage');
 const {decorateRouteWorkbook}=require('../lib/route-workbook');
 const {publishGuide}=require('../lib/publish-guide');
+const {listComboGuides,commitComboGuide}=require('../lib/combo-guides');
+const {prepareComboPublication,publishPreparedCombo}=require('../lib/combo-publication');
+const {connectLibrary}=require('../lib/sharepoint');
 
 const base=()=>process.env.SUPABASE_URL+'/rest/v1/';
 const headers=()=>({apikey:process.env.SUPABASE_SECRET_KEY,Authorization:'Bearer '+process.env.SUPABASE_SECRET_KEY,'Content-Type':'application/json'});
@@ -28,12 +31,23 @@ async function membership(user,id) {
   return route;
 }
 async function publish(id,route) {
-  await publishGuide(await getRequest(id),route,async itemId=>{
+  const guides=await listComboGuides(id);
+  async function markRoute(itemId) {
     const rows=await query('guide_signature_routes?'+filter('request_id',id)+'&step=eq.Lista%20para%20publicar',{
       method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({step:'Publicada',published_item_id:itemId,completed_at:new Date().toISOString()})
     });
     if(!rows.length && (await getRoute(id))?.step!=='Publicada') throw fail(409,'No se pudo registrar la publicación. Vuelve a intentarlo.');
-  });
+  }
+  if(guides.length) {
+    if(route.step==='Publicada') return;
+    if(route.step!=='Lista para publicar') throw fail(409,'La ruta de firmas aún no ha terminado.');
+    const library=await connectLibrary();
+    const prepared=await prepareComboPublication(guides,library,readDraft);
+    await publishPreparedCombo(prepared,library,async guide=>{
+      if(guide.publication_state!=='Publicada') await commitComboGuide(guide,{publication_state:'Publicada',published_at:new Date().toISOString()});
+    });
+    await markRoute(null);
+  } else await publishGuide(await getRequest(id),route,markRoute);
 }
 module.exports=async(req,res)=>{
   res.setHeader('Cache-Control','no-store');
@@ -47,7 +61,8 @@ module.exports=async(req,res)=>{
         const route=await getRoute(member.request_id);
         if(!route || route.step!==member.step || member.signed_at) continue;
         const request=await getRequest(member.request_id);
-        result.push({requestId:member.request_id,requestCode:request.request_code,guide:request.guide_name,step:member.step});
+        const guides=await listComboGuides(member.request_id);
+        result.push({requestId:member.request_id,requestCode:request.request_code,guide:request.guide_name,guides:guides.map(g=>({id:g.id,guide_name:g.guide_name})),step:member.step});
       }
       return res.json({items:result});
     }
@@ -58,7 +73,8 @@ module.exports=async(req,res)=>{
       const row=await getRequest(id);
       const requester=row.workflow_events?.find(event=>event.event_type==='Solicitud creada')?.note || null;
       const licenses=await query('guide_licenses?license_type=eq.Participante&select=email,display_name,can_review,can_approve&order=display_name.asc');
-      return res.json({requester,participants:licenses,route:await getRoute(id)});
+      const guides=await listComboGuides(id);
+      return res.json({requester,participants:licenses,route:await getRoute(id),guides:guides.map(g=>({id:g.id,guide_name:g.guide_name,publication_state:g.publication_state}))});
     }
     if(req.method==='GET') return res.json({route:await membership(user,id)});
     if(req.method==='POST' && req.body?.action==='publish') {
@@ -81,8 +97,26 @@ module.exports=async(req,res)=>{
       const member=route.guide_signature_members.find(m=>m.email.toLowerCase()===user.email.toLowerCase() && m.step===step && !m.signed_at);
       if(!member) throw fail(403,'No tienes una firma pendiente en esta etapa.');
       const row=await getRequest(id);
-      if(!row.draft_object_path) throw fail(409,'La guía no tiene un borrador disponible para firmar.');
+      const guides=await listComboGuides(id);
+      if(!guides.length && !row.draft_object_path) throw fail(409,'La guía no tiene un borrador disponible para firmar.');
       const now=new Date().toISOString();
+      if(guides.length) {
+        const versions=[],created=[];
+        try {
+          for(const guide of guides) {
+            if(!guide.draft_object_path) throw fail(409,'Falta el borrador de una guía del combo.');
+            const updated=await decorateRouteWorkbook(await readDraft(guide.draft_object_path),route.guide_signature_members.map(m=>m===member?{...m,signed_at:now}:m));
+            const draft=await writeDraft(row.id,'versions',updated);created.push(draft);
+            versions.push({id:guide.id,updated_at:guide.updated_at,previous:guide.draft_object_path,draft});
+          }
+          let nextStep=await query('rpc/sign_combo_step',{method:'POST',body:JSON.stringify({p_request_id:id,p_email:user.email,p_step:step,p_versions:versions,p_signed_at:now})});
+          if(nextStep==='Lista para publicar') {
+            try {await publish(id,await getRoute(id));nextStep='Publicada';}
+            catch(error) {return res.json({ok:true,step:nextStep,publicationError:error.status===409?error.message:'ASC debe reintentar la publicación del combo.'});}
+          }
+          return res.json({ok:true,step:nextStep});
+        } catch(error) {if(error.status===409) await Promise.all(created.map(deleteDraft));throw error;}
+      }
       const updated=await decorateRouteWorkbook(await readDraft(row.draft_object_path),route.guide_signature_members.map(m=>m===member?{...m,signed_at:now}:m));
       const nextPath=await writeDraft(row.id,'versions',updated);
       let nextStep;

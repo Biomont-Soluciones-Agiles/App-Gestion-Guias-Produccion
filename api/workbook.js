@@ -7,6 +7,7 @@ const {hasSignatureAccess} = require('../lib/signature-access');
 const {openWorkbook} = require('../lib/workbook');
 const {recalculate} = require('../lib/recalculate');
 const {decorateRouteWorkbook} = require('../lib/route-workbook');
+const {listComboGuides}=require('../lib/combo-guides');
 
 module.exports = async (req,res) => {
   res.setHeader('Cache-Control','private, no-store');
@@ -17,7 +18,11 @@ module.exports = async (req,res) => {
     if (!['GET','POST'].includes(req.method)) throw fail(405,'Método no permitido.');
     const permitted=['Responsable','Jefatura','ASC'].some(role => hasRole(user,role));
     if(!permitted && (req.method!=='GET' || req.query.edit==='1' || req.query.compare==='1' || !(await hasSignatureAccess(user.email,req.query.id)))) throw fail(403,'No tienes acceso a esta guía.');
-    const row=await getRequest(req.query.id);
+    const parent=await getRequest(req.query.id);
+    const guides=await listComboGuides(String(parent.id));
+    const selected=guides.length ? guides.find(guide=>guide.id===req.query.guideId) : null;
+    if(guides.length && !selected) throw fail(400,'Selecciona una guía del combo.');
+    const row=selected?{...parent,...selected,id:parent.id,workflow_stage:parent.workflow_stage,workflow_events:parent.workflow_events}:parent;
     if (!row.sharepoint_item_id) throw fail(404,'La solicitud carece de archivo de SharePoint.');
     const comparing=req.query.compare==='1';
     if (comparing && !hasRole(user,'Jefatura')) throw fail(403,'Acceso reservado a Jefatura.');
@@ -80,7 +85,7 @@ module.exports = async (req,res) => {
       return res.json({revision,itemId:item.id,webUrl,sheets:book.sheets,sheet});
     }
     if (req.body?.revision!==revision) throw fail(409,'La guía cambió. Vuelve a abrirla antes de guardar.');
-    const output=recalculate(book.apply(req.body.changes));
+    const output=selected && Array.isArray(req.body?.changes) && req.body.changes.length===0 ? bytes : recalculate(book.apply(req.body.changes));
     if (!row.draft_object_path) {
       const latest=await library.item(item.id);
       if (latest.eTag!==item.eTag) throw fail(409,'El Excel cambió en SharePoint. Vuelve a abrirlo.');
@@ -89,7 +94,10 @@ module.exports = async (req,res) => {
     let draftPath;
     try {
       draftPath=await writeDraft(row.id,'versions',output);
-      await commit(row,{baseline_object_path:baselinePath,draft_object_path:draftPath});
+      if(selected) {
+        const response=await fetch(process.env.SUPABASE_URL+'/rest/v1/rpc/save_combo_guide',{method:'POST',headers:{apikey:process.env.SUPABASE_SECRET_KEY,Authorization:'Bearer '+process.env.SUPABASE_SECRET_KEY,'Content-Type':'application/json'},body:JSON.stringify({p_request_id:String(parent.id),p_guide_id:selected.id,p_expected_updated_at:selected.updated_at,p_baseline:baselinePath,p_draft:draftPath})});
+        if(!response.ok) throw fail(response.status===400 || response.status===409?409:502,'No se pudo guardar la guía. Vuelve a abrir el combo.');
+      } else await commit(row,{baseline_object_path:baselinePath,draft_object_path:draftPath});
     } catch(error) {
       if(error.status===409) {
         if(draftPath) await deleteDraft(draftPath);

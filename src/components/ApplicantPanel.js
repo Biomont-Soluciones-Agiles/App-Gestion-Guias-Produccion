@@ -66,7 +66,7 @@ export default function ApplicantPanel({ view, requests, setRequests, updateRequ
                   <button onClick={() => setViewModalData(req)} className="text-blue-600 hover:text-blue-800 flex items-center justify-center gap-1 text-xs font-medium mx-auto bg-blue-50 px-3 py-1.5 rounded-md hover:bg-blue-100 transition-colors">
                     <Eye size={14} /> Ver
                   </button>
-                  {!isHistory && canEdit(req) && <button onClick={() => setEditingGuide(req)} className="mt-2 mx-auto flex items-center justify-center gap-1 rounded-md bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100"><FileEdit size={14} /> Editar guía</button>}
+                  {!isHistory && canEdit(req) && <button onClick={() => req.guides?.length ? setViewModalData(req) : setEditingGuide(req)} className="mt-2 mx-auto flex items-center justify-center gap-1 rounded-md bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100"><FileEdit size={14} /> {req.guides?.length?'Editar guías':'Editar guía'}</button>}
                 </td>
               </tr>
             ))}
@@ -74,11 +74,11 @@ export default function ApplicantPanel({ view, requests, setRequests, updateRequ
         </table>
       </div>
       {isModalOpen && <NewRequestModal onClose={() => setIsModalOpen(false)} onSubmit={handleSubmit} />}
-      {viewModalData && <ViewRequestModal data={viewModalData} editable={canEdit(viewModalData)} onClose={() => setViewModalData(null)} onView={setViewingGuide} onEdit={(request) => { setViewModalData(null); setEditingGuide(request); }} />}
+      {viewModalData && <ViewRequestModal data={viewModalData} editable={canEdit(viewModalData)} onClose={() => setViewModalData(null)} onView={setViewingGuide} onEdit={(request) => { setViewModalData(null); setEditingGuide(request); }} onSend={async request=>{if(await updateRequest(request.id,'PENDIENTE_JEFATURA','Responsable','Combo enviado a revisión de Jefatura'))setViewModalData(null);}} />}
       {viewingGuide && <GuideViewer data={viewingGuide} onClose={() => setViewingGuide(null)} />}
       {editingGuide && <GuideViewer editable data={editingGuide} onClose={() => setEditingGuide(null)}
         onSaved={itemId => onWorkbookSaved(editingGuide.id, itemId)}
-        onSubmit={async itemId => {
+        onSubmit={editingGuide.guideId ? undefined : async itemId => {
           const ok = await updateRequest(editingGuide.id, 'PENDIENTE_JEFATURA', 'Responsable', 'Nueva versión enviada a revisión de Jefatura', '', itemId);
           if (ok) setEditingGuide(null);
         }} />}
@@ -89,6 +89,7 @@ export default function ApplicantPanel({ view, requests, setRequests, updateRequ
 function NewRequestModal({ onClose, onSubmit }) {
   const [formData, setFormData] = useState({ productIndex: '', guide: '', area: '', type: 'Última versión de la guía', reason: '', justification: '' });
   const [search, setSearch] = useState('');
+  const [selectedGuides, setSelectedGuides] = useState([]);
   const [products, setProducts] = useState([]);
   const [catalogStatus, setCatalogStatus] = useState('loading');
   const [attempt, setAttempt] = useState(0);
@@ -104,8 +105,16 @@ function NewRequestModal({ onClose, onSubmit }) {
   const selectedProduct = formData.productIndex === '' ? null : products[Number(formData.productIndex)];
   const selectProduct = (index) => {
     const selected = products[Number(index)];
-    setSearch(selected ? selected.product : '');
-    setFormData({ ...formData, productIndex: index, guide: selected ? selected.name : '' });
+    if (!selected || selectedGuides.some(item => item.id === selected.id)) return;
+    const next = [...selectedGuides, selected];
+    setSelectedGuides(next);
+    setSearch('');
+    setFormData({ ...formData, productIndex: String(products.indexOf(next[0])), guide: next[0].name });
+  };
+  const removeProduct = id => {
+    const next = selectedGuides.filter(item => item.id !== id);
+    setSelectedGuides(next);
+    setFormData({ ...formData, productIndex: next.length ? String(products.indexOf(next[0])) : '', guide: next[0]?.name || '' });
   };
   const filteredProducts = products.filter((item) => `${item.name} ${item.line} ${item.product} ${item.phase}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(search.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()));
   return (
@@ -115,11 +124,11 @@ function NewRequestModal({ onClose, onSubmit }) {
           <div><h3 className="text-[22px] font-bold leading-tight text-slate-900">Nueva Solicitud de Editable</h3><p className="mt-1 text-sm text-slate-500">Complete los datos para iniciar el flujo de solicitud.</p></div>
           <button onClick={onClose} aria-label="Cerrar" className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-slate-600"><XCircle size={22} /></button>
         </header>
-        <form id="new-req-form" className="space-y-7 overflow-y-auto px-6 py-7" onSubmit={(event) => { event.preventDefault(); if (!formData.guide || !selectedProduct) return; onSubmit({ ...selectedProduct, ...formData }); }}>
+        <form id="new-req-form" className="space-y-7 overflow-y-auto px-6 py-7" onSubmit={(event) => { event.preventDefault(); if (!formData.guide || !selectedProduct) return; onSubmit({ ...selectedProduct, ...formData, guides:selectedGuides }); }}>
           {catalogStatus === 'loading' && <p role="status" className="text-sm text-slate-500">Cargando guías de SharePoint...</p>}
           {catalogStatus === 'error' && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">No se pudo cargar el catálogo de SharePoint. <button type="button" className="font-semibold underline" onClick={() => setAttempt(value => value + 1)}>Reintentar</button></div>}
           {catalogStatus === 'ready' && products.length === 0 && <p role="status" className="text-sm text-slate-500">No hay archivos Excel disponibles en la biblioteca de SharePoint.</p>}
-          <div><label className="mb-2 block text-sm font-semibold text-slate-700">Buscar producto de la guía <span className="text-red-600">*</span></label><input required value={search} onChange={(event) => { setSearch(event.target.value); setFormData({ ...formData, productIndex: '', guide: '' }); }} placeholder="Escriba línea, producto o fase..." className="w-full rounded-lg border border-slate-300 px-3.5 py-3 text-sm outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />{!selectedProduct && search && <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-slate-200 bg-white">{filteredProducts.map((item) => { const index = products.indexOf(item); return <button type="button" key={item.id} onClick={() => selectProduct(index)} className="block w-full border-b border-slate-100 px-3.5 py-2 text-left text-sm text-slate-700 hover:bg-blue-50"><strong>{item.product}</strong><span className="ml-2 text-xs text-slate-500">{[item.name, item.line, item.phase, item.classification].filter(Boolean).join(" · ")}</span></button>; })}{filteredProducts.length === 0 && <p className="px-3.5 py-3 text-sm text-slate-500">No se encontraron productos.</p>}</div>}{selectedProduct && <p className="mt-2 text-xs text-slate-500">Guía: {formData.guide}</p>}</div>
+          <div><label htmlFor="combo-search" className="mb-2 block text-sm font-semibold text-slate-700">Buscar guías <span className="text-red-600">*</span></label><input id="combo-search" value={search} onChange={event=>setSearch(event.target.value)} placeholder="Escriba línea, producto o fase..." className="w-full rounded-lg border border-slate-300 px-3.5 py-3 text-sm" />{search && <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-slate-200 bg-white">{filteredProducts.filter(item=>!selectedGuides.some(selected=>selected.id===item.id)).map(item=><button type="button" key={item.id} onClick={()=>selectProduct(products.indexOf(item))} className="block w-full border-b px-3 py-2 text-left text-sm hover:bg-blue-50"><strong>{item.product}</strong><span className="ml-2 text-slate-500">{[item.name,item.line,item.phase].filter(Boolean).join(' · ')}</span></button>)}</div>}{selectedGuides.length>0 && <ul className="mt-3 space-y-2">{selectedGuides.map(item=><li key={item.id} className="flex items-center justify-between gap-3 rounded border bg-slate-50 p-3 text-sm"><span>{item.name} · {item.phase}</span><button type="button" onClick={()=>removeProduct(item.id)} className="text-red-700">Quitar</button></li>)}</ul>}<p className="mt-2 text-xs text-slate-500">Selecciona una o varias guías para la solicitud.</p></div>
           <div className="grid gap-4 sm:grid-cols-3"><div><label className="mb-2 block text-sm font-semibold text-slate-700">Línea</label><input readOnly value={selectedProduct?.line || ''} placeholder="Automático" className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-3 text-sm text-slate-600" /></div><div><label className="mb-2 block text-sm font-semibold text-slate-700">Producto</label><input readOnly value={selectedProduct?.product || ''} placeholder="Automático" className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-3 text-sm text-slate-600" /></div><div><label className="mb-2 block text-sm font-semibold text-slate-700">Fase</label><input readOnly value={selectedProduct?.phase || ''} placeholder="Automático" className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-3 text-sm text-slate-600" /></div></div>
           <div className="grid gap-6 sm:grid-cols-2">
             <div><label className="mb-2 block text-sm font-semibold text-slate-700">Área Solicitante <span className="text-red-600">*</span></label><select required className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-3 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" value={formData.area} onChange={(event) => setFormData({ ...formData, area: event.target.value })}><option value="">Seleccione un área...</option><option value="Acondicionado">Acondicionado</option><option value="Desarrollo Farmacéutico - DF">Desarrollo Farmacéutico - DF</option><option value="Planta">Planta</option><option value="Validación - VOT">Validación - VOT</option></select></div>
@@ -134,7 +143,7 @@ function NewRequestModal({ onClose, onSubmit }) {
   );
 }
 
-function ViewRequestModal({ data, editable, onClose, onEdit, onView }) {
+function ViewRequestModal({ data, editable, onClose, onEdit, onView, onSend }) {
   return (
     <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden">
@@ -155,7 +164,8 @@ function ViewRequestModal({ data, editable, onClose, onEdit, onView }) {
             </div>
             <div><p className="text-xs text-slate-500 uppercase font-bold mb-1">Justificación</p><p className="text-sm bg-white p-3 border rounded">{data.justification}</p></div>
           </div>
-          {editable && (
+          {data.guides?.length>0 && <div className="space-y-2"><p className="text-sm font-bold">Guías del combo</p>{data.guides.map(guide=><div key={guide.id} className="flex flex-wrap items-center justify-between gap-2 rounded border p-2 text-sm"><span>{guide.guide_name} · {guide.production_phase}</span><div className="flex gap-2"><button onClick={()=>onView({...data,guide:guide.guide_name,guideId:guide.id})} className="rounded border px-2 py-1">Ver</button>{editable && <button onClick={()=>onEdit({...data,guide:guide.guide_name,guideId:guide.id})} className="rounded bg-blue-700 px-2 py-1 text-white">Editar</button>}</div></div>)}{editable && <button onClick={()=>onSend(data)} className="w-full rounded bg-emerald-700 p-2 text-sm text-white">Enviar combo a Jefatura</button>}</div>}
+          {editable && !data.guides?.length && (
             <div className="border border-emerald-200 bg-emerald-50 rounded-lg p-4">
               <h4 className="text-sm font-bold text-emerald-800 mb-2 flex items-center gap-2"><FileEdit size={16} /> Editable disponible</h4>
               <p className="mb-3 text-xs text-emerald-800">Edita la guía y envía la versión guardada a Jefatura.</p>

@@ -33,3 +33,24 @@ test('escribe directamente en una celda y envía a revisión el archivo guardado
     global.fetch=previousFetch;
   }
 });
+
+test('guarda una guía del combo sin enviar las demás a Jefatura',async()=>{
+  global.IS_REACT_ACT_ENVIRONMENT=true;
+  global.ResizeObserver=class {observe(){} disconnect(){}};
+  const host=document.createElement('div');document.body.appendChild(host);
+  Object.defineProperty(HTMLElement.prototype,'clientWidth',{configurable:true,get:()=>800});
+  Object.defineProperty(HTMLElement.prototype,'clientHeight',{configurable:true,get:()=>500});
+  const root=createRoot(host),sheet={name:'Hoja',styles:[],defaultWidth:70,defaultHeight:20,rows:[],columns:[],images:[],merges:[],formulaRanges:[],cells:[]};
+  const previousFetch=global.fetch,onSaved=jest.fn();
+  global.fetch=jest.fn(async(url,opts)=>({ok:true,json:async()=>opts.method==='POST'?{itemId:'archivo'}:{revision:'r1',itemId:'archivo',sheet,sheets:['Hoja']}}));
+  try {
+    await act(async()=>root.render(<GuideViewer data={{dbId:'solicitud',guideId:'guia-1',guide:'Guía.xlsx'}} editable onSaved={onSaved}/>));
+    expect(global.fetch.mock.calls[0][0]).toContain('guideId=guia-1');
+    expect(Array.from(host.querySelectorAll('button')).some(button=>button.textContent==='Enviar a Jefatura')).toBe(false);
+    await act(async()=>Array.from(host.querySelectorAll('button')).find(button=>button.textContent==='Guardar cambios').click());
+    const post=global.fetch.mock.calls.find(([,options])=>options.method==='POST');
+    expect(post[0]).toContain('guideId=guia-1');
+    expect(JSON.parse(post[1].body).changes).toEqual([]);
+    expect(onSaved).toHaveBeenCalledWith('archivo');
+  } finally {await act(async()=>root.unmount());host.remove();global.fetch=previousFetch;}
+});

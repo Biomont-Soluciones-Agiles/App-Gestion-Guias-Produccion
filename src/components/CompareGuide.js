@@ -21,12 +21,12 @@ export default function CompareGuide({data,onClose}){
   useEffect(()=>{
     const abort=new AbortController();
     setResult(null);setError('');
-    const params=new URLSearchParams({id:data.dbId,compare:'1',sheet});
+    const params=new URLSearchParams({id:data.dbId,compare:'1',sheet,...(data.guideId?{guideId:data.guideId}:{})});
     fetch('/api/workbook?'+params,{signal:abort.signal,cache:'no-store'})
       .then(async r=>{const body=await r.json();if(!r.ok)throw Error(body.error);return body;})
       .then(setResult).catch(e=>{if(e.name!=='AbortError')setError(e.message);});
     return ()=>abort.abort();
-  },[data.dbId,sheet]);
+  },[data.dbId,data.guideId,sheet]);
   const [oldMarks,newMarks]=result?compare(result.before,result.after):[{},{}];
   return <div className="fixed inset-0 z-[60] flex flex-col bg-slate-100">
     <header className="flex flex-wrap items-center justify-between gap-3 border-b bg-white px-5 py-3"><div><h2 className="text-lg font-bold">Comparar versiones</h2><p className="text-sm text-slate-600">{data.guide}</p></div><button className="rounded border px-4 py-2" onClick={onClose}>Cerrar</button></header>

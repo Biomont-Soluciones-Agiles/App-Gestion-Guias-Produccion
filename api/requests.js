@@ -1,7 +1,8 @@
 const { session, hasRole } = require('./_auth');
 const {getRequest, commit, canEdit, editable, fail} = require('../lib/request-state');
 const {connectLibrary, draftPrefix} = require('../lib/sharepoint');
-const {approveTechnical} = require('../lib/technical-approval');
+const {approveTechnical,approveComboTechnical} = require('../lib/technical-approval');
+const {validateComboSelection,listComboGuides}=require('../lib/combo-guides');
 const url = () => `${process.env.SUPABASE_URL}/rest/v1`;
 const headers = () => ({ apikey: process.env.SUPABASE_SECRET_KEY, Authorization: `Bearer ${process.env.SUPABASE_SECRET_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=representation' });
 const send = (res, code, body) => res.status(code).json(body);
@@ -16,14 +17,21 @@ module.exports = async (req, res) => {
       const rows=await response.json();
       if(!response.ok) return send(res,response.status,rows);
       const ids=rows.filter(row=>row.workflow_stage==='APROBADA_TECNICA').map(row=>String(row.id));
-      const steps=new Map();
+      const steps=new Map(),guideMap=new Map();
       for(let i=0;i<ids.length;i+=100) {
         const params=new URLSearchParams({select:'request_id,step',request_id:'in.('+ids.slice(i,i+100).join(',')+')'});
         const result=await fetch(`${url()}/guide_signature_routes?${params}`,{headers:headers()});
         if(!result.ok) throw fail(502,'No se pudo consultar el estado de las rutas de firma.');
         for(const route of await result.json()) steps.set(String(route.request_id),route.step);
       }
-      return send(res,200,rows.map(row=>({...row,signature_step:steps.get(String(row.id)) || null})));
+      const allIds=rows.map(row=>String(row.id));
+      for(let i=0;i<allIds.length;i+=40) {
+        const params=new URLSearchParams({select:'id,request_id,sharepoint_item_id,guide_name,product,production_line,production_phase',request_id:'in.('+allIds.slice(i,i+40).join(',')+')',order:'created_at.asc,id.asc'});
+        const result=await fetch(`${url()}/production_request_guides?${params}`,{headers:headers()});
+        if(!result.ok) throw fail(502,'No se pudieron consultar las guías del combo.');
+        for(const guide of await result.json()) {const list=guideMap.get(String(guide.request_id)) || [];list.push(guide);guideMap.set(String(guide.request_id),list);}
+      }
+      return send(res,200,rows.map(row=>({...row,signature_step:steps.get(String(row.id)) || null,guides:guideMap.get(String(row.id)) || []})));
     }
     if (req.method === 'POST') {
       const { action, request, id, stage, actor, event, note, itemId } = req.body || {};
@@ -31,6 +39,23 @@ module.exports = async (req, res) => {
         if (!hasRole(user,'Responsable')) throw fail(403,'Solo el Responsable puede crear solicitudes.');
         const allowed = ['request_code','sharepoint_item_id','guide_name','product','production_line','production_phase','requester_area','request_reason','guide_type','justification'];
         const fields = Object.fromEntries(allowed.map(key => [key, request?.[key]]));
+        if(Array.isArray(req.body.guides) && req.body.guides.length>1) {
+          const ids=validateComboSelection(req.body.guides);
+          const library=await connectLibrary();
+          const root=await library.json('/drives/'+library.drive.id+'/root?$select=id');
+          const guides=[];
+          for(const id of ids) {
+            const source=await library.json('/drives/'+library.drive.id+'/items/'+encodeURIComponent(id)+'?$select=id,name,file,parentReference&$expand=listItem($expand=fields)');
+            if(!source.file || !/\.xlsx$/i.test(source.name) || source.name.startsWith(draftPrefix) || source.parentReference?.id!==root.id) throw fail(400,'Una de las guías no pertenece al catálogo de SharePoint.');
+            const meta=source.listItem?.fields || {};
+            guides.push({sharepoint_item_id:id,guide_name:source.name,product:meta.Producto || '',production_phase:meta.FaseProduccion || '',production_line:meta.LineaProd || meta.LineaProduccion || ''});
+          }
+          Object.assign(fields,guides[0]);
+          const created=await fetch(`${url()}/rpc/create_combo_request`,{method:'POST',headers:headers(),body:JSON.stringify({p_request:fields,p_guides:guides,p_email:user.email})});
+          if(!created.ok) throw fail(502,'No se pudo crear la solicitud de varias guías.');
+          const id=await created.json();
+          return send(res,201,await getRequest(String(id)));
+        }
         if (!/^[A-Za-z0-9_-]+$/.test(fields.sharepoint_item_id || '')) throw fail(400,'Selecciona una guía del catálogo.');
         const library = await connectLibrary();
         const [source,root] = await Promise.all([library.item(fields.sharepoint_item_id), library.json('/drives/'+library.drive.id+'/root?$select=id')]);
@@ -44,6 +69,7 @@ module.exports = async (req, res) => {
       }
       if (action === 'update') {
         const row=await getRequest(id);
+        const guides=await listComboGuides(String(id));
         const transitions = {
           PENDIENTE_ASC_INICIAL: ['ASC','EN_EDICION','RECHAZADA_ASC_INICIAL'],
           PENDIENTE_JEFATURA: ['Jefatura','PENDIENTE_ASC_TECNICA','OBSERVADA_JEFATURA'],
@@ -51,9 +77,13 @@ module.exports = async (req, res) => {
         };
         const [role,...targets] = editable.includes(row.workflow_stage) ? ['Responsable','PENDIENTE_JEFATURA'] : transitions[row.workflow_stage] || [];
         if (!targets.includes(stage) || actor !== role || !hasRole(user,role)) throw fail(403,'La transición solicitada no está disponible.');
-        if (role === 'Responsable' && (!canEdit(user,row) || itemId !== row.sharepoint_item_id)) throw fail(409,'La versión cambió o la edición está cerrada. Vuelve a abrir la guía.');
-        const saved = row.workflow_stage === 'PENDIENTE_ASC_TECNICA' && stage === 'APROBADA_TECNICA'
-          ? await approveTechnical(row) : await commit(row,{workflow_stage:stage});
+        if (role === 'Responsable' && (!canEdit(user,row) || (!guides.length && itemId !== row.sharepoint_item_id))) throw fail(409,'La versión cambió o la edición está cerrada. Vuelve a abrir la guía.');
+        if(guides.length && role==='Responsable' && guides.some(guide=>!guide.baseline_object_path || !guide.draft_object_path)) throw fail(409,'Guarda cada guía del combo antes de enviarlo a Jefatura.');
+        let saved;
+        if(row.workflow_stage === 'PENDIENTE_ASC_TECNICA' && stage === 'APROBADA_TECNICA') {
+          if(guides.length) {await approveComboTechnical(row,guides);saved=await getRequest(id);}
+          else saved=await approveTechnical(row);
+        } else saved=await commit(row,{workflow_stage:stage});
         await fetch(`${url()}/workflow_events`, { method: 'POST', headers: headers(), body: JSON.stringify({ request_id: id, actor_role: actor, event_type: event, note: note || null }) });
         return send(res, 200, saved);
       }
