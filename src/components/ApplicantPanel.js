@@ -191,14 +191,6 @@ function ViewRequestModal({ data, editable, onClose, onEdit, onView, onSend }) {
           </div>
           {data.stage==='TEMPORAL_COMPARTIDA' && !data.guides?.length && <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4"><p className="mb-3 text-sm text-emerald-800">Guía temporal compartida para consulta.</p><button onClick={()=>onView(data)} className="w-full rounded bg-blue-700 py-2 text-sm font-medium text-white">Ver guía temporal</button></div>}
           {data.guides?.length>0 && <div className="space-y-2"><p className="text-sm font-bold">Guías del combo</p>{data.guides.map(guide=><div key={guide.id} className="flex flex-wrap items-center justify-between gap-2 rounded border p-2 text-sm"><span>{guide.guide_name} · {guide.production_phase}</span><div className="flex gap-2"><button onClick={()=>onView({...data,guide:guide.guide_name,guideId:guide.id})} className="rounded border px-2 py-1">Ver</button>{editable && <button onClick={()=>onEdit({...data,guide:guide.guide_name,guideId:guide.id})} className="rounded bg-blue-700 px-2 py-1 text-white">Editar</button>}</div></div>)}{editable && <button onClick={()=>onSend(data)} className="w-full rounded bg-emerald-700 p-2 text-sm text-white">Enviar combo a Jefatura</button>}</div>}
-          {editable && !data.guides?.length && (
-            <div className="border border-emerald-200 bg-emerald-50 rounded-lg p-4">
-              <h4 className="text-sm font-bold text-emerald-800 mb-2 flex items-center gap-2"><FileEdit size={16} /> Editable disponible</h4>
-              <p className="mb-3 text-xs text-emerald-800">Edita la guía y envía la versión guardada a Jefatura.</p>
-              <button onClick={() => onView(data)} className="mb-2 w-full bg-blue-700 text-white py-2 rounded text-sm font-medium flex items-center justify-center gap-2"><Eye size={16} /> Ver Excel</button>
-              <button onClick={() => onEdit(data)} className="w-full bg-emerald-600 text-white py-2 rounded text-sm font-medium flex items-center justify-center gap-2"><FileEdit size={16} /> Editar guía</button>
-            </div>
-          )}
           {data.status === 'Rechazado' && data.rejectReason && (
             <div className="border border-red-200 bg-red-50 rounded-lg p-4"><h4 className="text-sm font-bold text-red-800 mb-1">Motivo de Rechazo</h4><p className="text-sm text-red-700">{data.rejectReason}</p></div>
           )}
