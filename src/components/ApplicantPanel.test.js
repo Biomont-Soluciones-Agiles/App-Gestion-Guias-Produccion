@@ -1,7 +1,7 @@
 import React, {act} from 'react';
 import {createRoot} from 'react-dom/client';
 import {Simulate} from 'react-dom/test-utils';
-import ApplicantPanel from './ApplicantPanel';
+import ApplicantPanel, {NewRequestModal} from './ApplicantPanel';
 
 test('muestra los datos de cada guía seleccionada y los quita al retirarla',async()=>{
   global.IS_REACT_ACT_ENVIRONMENT=true;
@@ -25,4 +25,22 @@ test('muestra los datos de cada guía seleccionada y los quita al retirarla',asy
     await act(async()=>section.querySelector('[aria-label="Quitar Proteggo F.xlsx"]').click());
     expect(section.textContent).not.toContain('Fabricación');expect(section.textContent).toContain('Envasado');
   } finally {await act(async()=>root.unmount());host.remove();global.fetch=originalFetch;}
+});
+
+test('ASC puede seleccionar un emisor y asignar la guía',async()=>{
+  global.IS_REACT_ACT_ENVIRONMENT=true;
+  const previous=global.fetch,submit=jest.fn(async()=>{}),host=document.createElement('div');document.body.appendChild(host);
+  global.fetch=jest.fn(async url=>({ok:true,json:async()=>String(url).includes('emitters=1')?[{email:'ana@biomont.com.pe',display_name:'Ana'}]:{guides:[{id:'archivo',name:'Guía.xlsx',product:'Producto',phase:'Fabricación'}]}}));
+  const root=createRoot(host);
+  try {
+    await act(async()=>root.render(<NewRequestModal assigning onClose={()=>{}} onSubmit={submit}/>));
+    const select=host.querySelector('#assigned-emitter');
+    await act(async()=>{select.value='ana@biomont.com.pe';Simulate.change(select);});
+    const search=host.querySelector('#combo-search');
+    await act(async()=>{search.value='Producto';Simulate.change(search);});
+    await act(async()=>Array.from(host.querySelectorAll('button')).find(button=>button.textContent.includes('Guía.xlsx')).click());
+    expect(Array.from(host.querySelectorAll('button')).some(button=>button.textContent==='Asignar')).toBe(true);
+    await act(async()=>Simulate.submit(host.querySelector('#new-req-form')));
+    expect(submit).toHaveBeenCalledWith(expect.objectContaining({emitter:'ana@biomont.com.pe',guides:[expect.objectContaining({id:'archivo'})]}));
+  } finally {await act(async()=>root.unmount());host.remove();global.fetch=previous;}
 });

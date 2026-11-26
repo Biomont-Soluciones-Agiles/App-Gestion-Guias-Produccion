@@ -86,13 +86,23 @@ export default function ApplicantPanel({ view, requests, setRequests, updateRequ
   );
 }
 
-function NewRequestModal({ onClose, onSubmit }) {
+export function NewRequestModal({ onClose, onSubmit, assigning=false }) {
   const [formData, setFormData] = useState({ productIndex: '', guide: '', area: '', type: 'Última versión de la guía', reason: '', justification: '' });
   const [search, setSearch] = useState('');
   const [selectedGuides, setSelectedGuides] = useState([]);
   const [products, setProducts] = useState([]);
   const [catalogStatus, setCatalogStatus] = useState('loading');
   const [attempt, setAttempt] = useState(0);
+  const [emitters,setEmitters]=useState([]);
+  const [emitter,setEmitter]=useState('');
+  const [emitterError,setEmitterError]=useState('');
+  const [submitting,setSubmitting]=useState(false);
+  useEffect(()=>{
+    if(!assigning) return;
+    const controller=new AbortController();
+    fetch('/api/requests?emitters=1',{signal:controller.signal,cache:'no-store'}).then(async response=>{if(!response.ok)throw Error('No se pudo cargar la lista de emisores.');return response.json();}).then(setEmitters).catch(error=>{if(error.name!=='AbortError')setEmitterError(error.message);});
+    return ()=>controller.abort();
+  },[assigning]);
   useEffect(() => {
     const controller = new AbortController();
     setCatalogStatus('loading');
@@ -121,10 +131,11 @@ function NewRequestModal({ onClose, onSubmit }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
       <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
         <header className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
-          <div><h3 className="text-[22px] font-bold leading-tight text-slate-900">Nueva Solicitud de Editable</h3><p className="mt-1 text-sm text-slate-500">Complete los datos para iniciar el flujo de solicitud.</p></div>
+          <div><h3 className="text-[22px] font-bold leading-tight text-slate-900">{assigning?'Asignar guía para edición':'Nueva Solicitud de Editable'}</h3><p className="mt-1 text-sm text-slate-500">{assigning?'Selecciona las guías y el emisor que las editará.':'Complete los datos para iniciar el flujo de solicitud.'}</p></div>
           <button onClick={onClose} aria-label="Cerrar" className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-slate-600"><XCircle size={22} /></button>
         </header>
-        <form id="new-req-form" className="space-y-7 overflow-y-auto px-6 py-7" onSubmit={(event) => { event.preventDefault(); if (!formData.guide || !selectedProduct) return; onSubmit({ ...selectedProduct, ...formData, guides:selectedGuides }); }}>
+        <form id="new-req-form" className="space-y-7 overflow-y-auto px-6 py-7" onSubmit={async event => { event.preventDefault(); if (submitting || !formData.guide || !selectedProduct || (assigning && !emitter)) return; setSubmitting(true); try {await onSubmit({ ...selectedProduct, ...formData, guides:selectedGuides, emitter });} finally {setSubmitting(false);} }}>
+          {assigning && <div><label htmlFor="assigned-emitter" className="mb-2 block text-sm font-semibold text-slate-700">Usuario emisor <span className="text-red-600">*</span></label><select id="assigned-emitter" required value={emitter} onChange={event=>setEmitter(event.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-3 text-sm"><option value="">Selecciona un emisor...</option>{emitters.map(person=><option key={person.email} value={person.email}>{person.display_name} · {person.email}</option>)}</select>{emitterError && <p role="alert" className="mt-2 text-sm text-red-700">{emitterError}</p>}{!emitterError && !emitters.length && <p className="mt-2 text-xs text-slate-500">No hay emisores activos disponibles o la lista está cargando.</p>}</div>}
           {catalogStatus === 'loading' && <p role="status" className="text-sm text-slate-500">Cargando guías de SharePoint...</p>}
           {catalogStatus === 'error' && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">No se pudo cargar el catálogo de SharePoint. <button type="button" className="font-semibold underline" onClick={() => setAttempt(value => value + 1)}>Reintentar</button></div>}
           {catalogStatus === 'ready' && products.length === 0 && <p role="status" className="text-sm text-slate-500">No hay archivos Excel disponibles en la biblioteca de SharePoint.</p>}
@@ -143,7 +154,7 @@ function NewRequestModal({ onClose, onSubmit }) {
           <div><p className="mb-3 text-sm font-semibold text-slate-700">Tipo de Guía <span className="text-red-600">*</span></p><div className="flex flex-wrap gap-x-7 gap-y-3"><label className="flex cursor-pointer items-center gap-2 text-sm text-slate-600"><input type="radio" className="h-4 w-4 accent-blue-600" checked={formData.type === 'Última versión de la guía'} onChange={() => setFormData({ ...formData, type: 'Última versión de la guía' })} />Última versión de la guía</label><label className="flex cursor-pointer items-center gap-2 text-sm text-slate-600"><input type="radio" className="h-4 w-4 accent-blue-600" checked={formData.type === 'Guía de referencia para producto nuevo'} onChange={() => setFormData({ ...formData, type: 'Guía de referencia para producto nuevo' })} />Guía de referencia (Producto nuevo)</label></div></div>
           <div><label className="mb-2 block text-sm font-semibold text-slate-700">Justificación detallada <span className="text-red-600">*</span></label><textarea required rows="4" placeholder="Explique brevemente el porqué de la solicitud..." className="w-full resize-none rounded-lg border border-slate-300 px-3.5 py-3 text-sm outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100" value={formData.justification} onChange={(event) => setFormData({ ...formData, justification: event.target.value })} /></div>
         </form>
-        <footer className="flex justify-end gap-3 border-t border-slate-100 px-6 py-4"><button type="button" onClick={onClose} className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancelar</button><button type="submit" form="new-req-form" className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700">⌁&nbsp; Enviar Solicitud</button></footer>
+        <footer className="flex justify-end gap-3 border-t border-slate-100 px-6 py-4"><button type="button" disabled={submitting} onClick={onClose} className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancelar</button><button type="submit" form="new-req-form" disabled={submitting} className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50">{submitting?'Guardando...':assigning?'Asignar':'Enviar Solicitud'}</button></footer>
       </div>
     </div>
   );

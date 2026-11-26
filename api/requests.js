@@ -12,6 +12,16 @@ module.exports = async (req, res) => {
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SECRET_KEY) return send(res, 500, { error: 'Supabase no está configurado.' });
   try {
     if (req.method === 'GET') {
+      if(req.query?.emitters==='1') {
+        if(!hasRole(user,'ASC')) throw fail(403,'Acceso reservado a ASC.');
+        const [licenses,users]=await Promise.all([
+          fetch(`${url()}/guide_licenses?select=email,display_name&license_type=eq.Emisor&order=display_name.asc`,{headers:headers()}),
+          fetch(`${url()}/app_users?select=email&is_active=eq.true`,{headers:headers()})
+        ]);
+        if(!licenses.ok || !users.ok) throw fail(502,'No se pudo consultar la lista de emisores.');
+        const active=new Set((await users.json()).map(item=>String(item.email).toLowerCase()));
+        return send(res,200,(await licenses.json()).filter(item=>active.has(String(item.email).toLowerCase())));
+      }
       if (!['Responsable','Jefatura','ASC'].some(role => hasRole(user,role))) return send(res, 200, []);
       const response = await fetch(`${url()}/production_requests?select=*,workflow_events(*)&order=created_at.desc`, { headers: headers() });
       const rows=await response.json();
@@ -35,12 +45,16 @@ module.exports = async (req, res) => {
     }
     if (req.method === 'POST') {
       const { action, request, id, stage, actor, event, note, itemId } = req.body || {};
-      if (action === 'create') {
-        if (!hasRole(user,'Responsable')) throw fail(403,'Solo el Responsable puede crear solicitudes.');
+      if (action === 'create' || action === 'assign') {
+        const assigning=action==='assign';
+        if (assigning ? !hasRole(user,'ASC') : !hasRole(user,'Responsable')) throw fail(403,'No tienes permiso para esta operación.');
         const allowed = ['request_code','sharepoint_item_id','guide_name','product','production_line','production_phase','requester_area','request_reason','guide_type','justification'];
         const fields = Object.fromEntries(allowed.map(key => [key, request?.[key]]));
-        if(Array.isArray(req.body.guides) && req.body.guides.length>1) {
-          const ids=validateComboSelection(req.body.guides);
+        if(assigning || (Array.isArray(req.body.guides) && req.body.guides.length>1)) {
+          const input=req.body.guides;
+          const ids=Array.isArray(input) && input.length===1 && /^[A-Za-z0-9_-]+$/.test(input[0]?.sharepoint_item_id || '') ? [input[0].sharepoint_item_id] : validateComboSelection(input);
+          const emitter=String(req.body.emitter || '').trim().toLowerCase();
+          if(assigning && !/^[^\s@]+@biomont\.com\.pe$/.test(emitter)) throw fail(400,'Selecciona un emisor válido.');
           const library=await connectLibrary();
           const root=await library.json('/drives/'+library.drive.id+'/root?$select=id');
           const guides=[];
@@ -51,8 +65,9 @@ module.exports = async (req, res) => {
             guides.push({sharepoint_item_id:id,guide_name:source.name,product:meta.Producto || '',production_phase:meta.FaseProduccion || '',production_line:meta.LineaProd || meta.LineaProduccion || ''});
           }
           Object.assign(fields,guides[0]);
-          const created=await fetch(`${url()}/rpc/create_combo_request`,{method:'POST',headers:headers(),body:JSON.stringify({p_request:fields,p_guides:guides,p_email:user.email})});
-          if(!created.ok) throw fail(502,'No se pudo crear la solicitud de varias guías.');
+          const payload=assigning?{p_request:fields,p_guides:guides,p_emitter:emitter,p_actor:user.email}:{p_request:fields,p_guides:guides,p_email:user.email};
+          const created=await fetch(`${url()}/rpc/${assigning?'create_asc_assignment':'create_combo_request'}`,{method:'POST',headers:headers(),body:JSON.stringify(payload)});
+          if(!created.ok) throw fail(created.status===400?409:502,assigning?'No se pudo asignar la guía. Comprueba que el emisor esté activo.':'No se pudo crear la solicitud de varias guías.');
           const id=await created.json();
           return send(res,201,await getRequest(String(id)));
         }
