@@ -10,7 +10,7 @@ async function run(stage,requiresModifications) {
   set('../api/_auth',{session:()=>({role:'ASC',email:'asc@biomont.com.pe'}),hasRole:(user,role)=>user.role===role});
   set('../lib/request-state',{getRequest:async()=>row,commit:async(_row,value)=>{patch=value;return {...row,...value};},canEdit:()=>false,editable:[],fail:(status,message)=>Object.assign(Error(message),{status})});
   set('../lib/combo-guides',{listComboGuides:async()=>[],validateComboSelection:()=>[]});
-  set('../lib/sharepoint',{connectLibrary:async()=>({drive:{id:'drive'},json:async()=>({file:{},parentReference:{id:'root'},listItem:{fields:{Estado:'Habilitado',TipoGuia:'Temporal'}}})})});
+  set('../lib/sharepoint',{connectLibrary:async()=>({drive:{id:'drive'},json:async()=>({file:{},parentReference:{id:'root'},listItem:{fields:{Estado:'Activo',TipoGuia:'Temporal'}}})})});
   set('../lib/guide-catalog-folder',{catalogFolder:async()=>({id:'root'})});
   process.env.SUPABASE_URL='https://db.invalid';process.env.SUPABASE_SECRET_KEY='test';
   global.fetch=async()=>new Response(null,{status:201});
@@ -30,4 +30,11 @@ test('no se puede habilitar edición por una petición manipulada para una tempo
 test('una temporal que requiere cambios no puede marcarse como compartida',async()=>{
   const response=await run('TEMPORAL_COMPARTIDA',true);
   assert.equal(response.status,409);assert.equal(response.patch,undefined);
+});
+test('tipos pendientes de definición no crean una solicitud',async()=>{
+  process.env.AUTH_SESSION_SECRET='test';process.env.SUPABASE_URL='https://db.invalid';process.env.SUPABASE_SECRET_KEY='test';
+  const {encode}=require('../api/_auth'),handler=require('../api/requests');let status=200,body;
+  const res={status(code){status=code;return this;},json(value){body=value;return this;}};
+  await handler({method:'POST',headers:{cookie:'gp_session='+encode({role:'Responsable',email:'a@biomont.com.pe',exp:Date.now()+60000})},body:{action:'create',request:{guide_type:'Producto nuevo'}}},res);
+  assert.equal(status,409);assert.match(body.error,/pendiente de definición/);
 });

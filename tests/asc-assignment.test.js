@@ -18,7 +18,7 @@ test('ASC solo recibe emisores activos',async()=>{
 test('la asignación registra al emisor y a la persona de ASC',async()=>{
   const previous=global.fetch,sharepoint=require('../lib/sharepoint'),original=sharepoint.connectLibrary,initial=require('../lib/initial-approval'),originalPrepare=initial.prepareDraft;
   let submitted;
-  sharepoint.connectLibrary=async()=>({drive:{id:'biblioteca'},json:async path=>path.includes('/root?')?{id:'raiz'}:{id:'archivo',name:'Guía.xlsx',file:{},parentReference:{id:'raiz'},listItem:{fields:{Producto:'Producto',FaseProduccion:'Fabricación',Estado:'Habilitado',TipoGuia:'Oficial'}}}});
+  sharepoint.connectLibrary=async()=>({drive:{id:'biblioteca'},json:async path=>path.includes('/root?')?{id:'raiz'}:{id:'archivo',name:'Guía.xlsx',file:{},parentReference:{id:'raiz'},listItem:{fields:{Producto:'Producto',FaseProduccion:'Fabricación',Estado:'Activo',TipoGuia:'Oficial'}}}});
   initial.prepareDraft=async()=>({baseline:'base-privada',draft:'borrador-limpio'});
   const handlerPath=require.resolve('../api/requests');delete require.cache[handlerPath];const assignmentHandler=require('../api/requests');
   global.fetch=async(url,options)=>{

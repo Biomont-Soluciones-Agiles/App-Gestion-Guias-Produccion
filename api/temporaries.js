@@ -10,7 +10,7 @@ module.exports=async(req,res)=>{
   if(!hasRole(user,'ASC')) return res.status(403).json({error:'Acceso reservado a ASC.'});
   if(req.method!=='POST') return res.status(405).json({error:'Método no permitido.'});
   const {id,status}=req.body || {};
-  if(typeof id!=='string' || !/^[A-Za-z0-9_-]{1,200}$/.test(id) || !['Habilitado','Inhabilitado'].includes(status)) return res.status(400).json({error:'Selecciona una guía y un estado válidos.'});
+  if(typeof id!=='string' || !/^[A-Za-z0-9_-]{1,200}$/.test(id) || !['Activo','Inactivo'].includes(status)) return res.status(400).json({error:'Selecciona una guía y un estado válidos.'});
   try {
     const library=await connectLibrary('temporary'),root=await catalogFolder(library,'temporary'),item=await library.item(id);
     if(!item.file || !/\.xlsx$/i.test(item.name) || item.parentReference?.id!==root.id) return res.status(404).json({error:'No se encontró la guía temporal.'});

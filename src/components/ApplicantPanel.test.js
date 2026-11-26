@@ -14,7 +14,7 @@ test('muestra los datos de cada guía seleccionada y los quita al retirarla',asy
   try {
     await act(async()=>root.render(<ApplicantPanel view="main" requests={[]} user={{role:'Responsable',email:'usuario@biomont.com.pe'}}/>));
     await act(async()=>Array.from(host.querySelectorAll('button')).find(button=>button.textContent.includes('Nueva Solicitud')).click());
-    await act(async()=>{const radio=host.querySelector('input[name="guide-type"]');radio.checked=true;Simulate.change(radio);});
+    await act(async()=>{const radio=Array.from(host.querySelectorAll('label')).find(label=>label.textContent==='Guía oficial').querySelector('input');radio.checked=true;Simulate.change(radio);});
     const search=host.querySelector('#combo-search');
     await act(async()=>{search.value='Proteggo';Simulate.change(search);});
     await act(async()=>Array.from(host.querySelectorAll('button')).find(button=>button.textContent.includes('Proteggo F.xlsx')).click());
@@ -37,7 +37,7 @@ test('ASC puede seleccionar un emisor y asignar la guía',async()=>{
     await act(async()=>root.render(<NewRequestModal assigning onClose={()=>{}} onSubmit={submit}/>));
     const select=host.querySelector('#assigned-emitter');
     await act(async()=>{select.value='ana@biomont.com.pe';Simulate.change(select);});
-    await act(async()=>{const radio=host.querySelector('input[name="guide-type"]');radio.checked=true;Simulate.change(radio);});
+    await act(async()=>{const radio=Array.from(host.querySelectorAll('label')).find(label=>label.textContent==='Guía oficial').querySelector('input');radio.checked=true;Simulate.change(radio);});
     const search=host.querySelector('#combo-search');
     await act(async()=>{search.value='Producto';Simulate.change(search);});
     await act(async()=>Array.from(host.querySelectorAll('button')).find(button=>button.textContent.includes('Guía.xlsx')).click());

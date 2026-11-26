@@ -56,6 +56,7 @@ module.exports = async (req, res) => {
         const allowed = ['request_code','sharepoint_item_id','guide_name','product','production_line','production_phase','requester_area','request_reason','guide_type','requires_modifications','justification'];
         const fields = Object.fromEntries(allowed.map(key => [key, request?.[key]]));
         if(!['Guía monitorizada','Producto nuevo','Guía oficial','Guía temporal'].includes(fields.guide_type)) throw fail(400,'Selecciona un tipo de guía válido.');
+        if(['Guía monitorizada','Producto nuevo'].includes(fields.guide_type)) throw fail(409,'El flujo de este tipo de guía aún está pendiente de definición.');
         if(fields.guide_type==='Guía temporal' && typeof fields.requires_modifications!=='boolean') throw fail(400,'Indica si la guía temporal requiere modificaciones.');
         if(fields.guide_type!=='Guía temporal') fields.requires_modifications=null;
         const source=fields.guide_type==='Guía temporal' && fields.requires_modifications===false?'temporary':'standard';
@@ -71,8 +72,8 @@ module.exports = async (req, res) => {
             const source=await library.json('/drives/'+library.drive.id+'/items/'+encodeURIComponent(id)+'?$select=id,name,file,parentReference&$expand=listItem($expand=fields)');
             if(!source.file || !/\.xlsx$/i.test(source.name) || source.name.startsWith(draftPrefix) || source.parentReference?.id!==root.id) throw fail(400,'Una de las guías no pertenece al catálogo de SharePoint.');
             const meta=source.listItem?.fields || {};
-            if(fields.guide_type==='Guía temporal' && fields.requires_modifications===false && (String(fieldValue(meta,['Estado'])).toLowerCase()!=='habilitado' || String(fieldValue(meta,['TipoGuia'])).toLowerCase()!=='temporal')) throw fail(409,'Una de las guías temporales ya no está habilitada.');
-            if(!(fields.guide_type==='Guía temporal' && fields.requires_modifications===false) && (String(fieldValue(meta,['Estado'])).toLowerCase()!=='habilitado' || String(fieldValue(meta,['TipoGuia'])).toLowerCase()!=='oficial')) throw fail(409,'Una guía seleccionada ya no figura como oficial habilitada.');
+            if(fields.guide_type==='Guía temporal' && fields.requires_modifications===false && (String(fieldValue(meta,['Estado'])).toLowerCase()!=='activo' || String(fieldValue(meta,['TipoGuia'])).toLowerCase()!=='temporal')) throw fail(409,'Una de las guías temporales ya no está habilitada.');
+            if(!(fields.guide_type==='Guía temporal' && fields.requires_modifications===false) && (String(fieldValue(meta,['Estado'])).toLowerCase()!=='activo' || String(fieldValue(meta,['TipoGuia'])).toLowerCase()!=='oficial')) throw fail(409,'Una guía seleccionada ya no figura como oficial habilitada.');
             guides.push({sharepoint_item_id:id,guide_name:source.name,product:meta.Producto || '',production_phase:meta.FaseProduccion || '',production_line:meta.LineaProd || meta.LineaProduccion || ''});
           }
           Object.assign(fields,guides[0]);
@@ -101,8 +102,8 @@ module.exports = async (req, res) => {
         const library = await connectLibrary(source);
         const [file,root] = await Promise.all([library.json('/drives/'+library.drive.id+'/items/'+encodeURIComponent(fields.sharepoint_item_id)+'?$select=id,name,file,parentReference&$expand=listItem($expand=fields)'), catalogFolder(library,source)]);
         if (!file.file || !/\.xlsx$/i.test(file.name) || file.name.startsWith(draftPrefix) || file.parentReference?.id !== root.id) throw fail(400,'Selecciona un Excel del catálogo correspondiente.');
-        if(source==='temporary' && (String(fieldValue(file.listItem?.fields,['Estado'])).toLowerCase()!=='habilitado' || String(fieldValue(file.listItem?.fields,['TipoGuia'])).toLowerCase()!=='temporal')) throw fail(409,'La guía temporal ya no está habilitada.');
-        if(source==='standard' && (String(fieldValue(file.listItem?.fields,['Estado'])).toLowerCase()!=='habilitado' || String(fieldValue(file.listItem?.fields,['TipoGuia'])).toLowerCase()!=='oficial')) throw fail(409,'La guía ya no figura como oficial habilitada.');
+        if(source==='temporary' && (String(fieldValue(file.listItem?.fields,['Estado'])).toLowerCase()!=='activo' || String(fieldValue(file.listItem?.fields,['TipoGuia'])).toLowerCase()!=='temporal')) throw fail(409,'La guía temporal ya no está habilitada.');
+        if(source==='standard' && (String(fieldValue(file.listItem?.fields,['Estado'])).toLowerCase()!=='activo' || String(fieldValue(file.listItem?.fields,['TipoGuia'])).toLowerCase()!=='oficial')) throw fail(409,'La guía ya no figura como oficial habilitada.');
         fields.guide_name = file.name;
         const response = await fetch(`${url()}/production_requests`, { method: 'POST', headers: headers(), body: JSON.stringify(fields) });
         const rows = await response.json();
@@ -127,7 +128,7 @@ module.exports = async (req, res) => {
           const library=await connectLibrary('temporary'),root=await catalogFolder(library,'temporary');
           for(const guide of guides.length?guides:[row]) {
             const item=await library.json('/drives/'+library.drive.id+'/items/'+encodeURIComponent(guide.sharepoint_item_id)+'?$select=id,file,parentReference&$expand=listItem($expand=fields)');
-            if(!item.file || item.parentReference?.id!==root.id || (String(fieldValue(item.listItem?.fields,['Estado'])).toLowerCase()!=='habilitado' || String(fieldValue(item.listItem?.fields,['TipoGuia'])).toLowerCase()!=='temporal')) throw fail(409,'Una guía temporal ya no está habilitada. Revisa la solicitud antes de aprobar.');
+            if(!item.file || item.parentReference?.id!==root.id || (String(fieldValue(item.listItem?.fields,['Estado'])).toLowerCase()!=='activo' || String(fieldValue(item.listItem?.fields,['TipoGuia'])).toLowerCase()!=='temporal')) throw fail(409,'Una guía temporal ya no está habilitada. Revisa la solicitud antes de aprobar.');
           }
         }
         if (role === 'Responsable' && (!canEdit(user,row) || (!guides.length && itemId !== row.sharepoint_item_id))) throw fail(409,'La versión cambió o la edición está cerrada. Vuelve a abrir la guía.');

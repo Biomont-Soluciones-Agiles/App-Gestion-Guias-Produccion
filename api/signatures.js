@@ -7,6 +7,7 @@ const {connectLibrary}=require('../lib/sharepoint');
 const {prepareTemporaryPublication,publishTemporaryPlan}=require('../lib/publish-temporary');
 const {temporaryGuideInfo}=require('../lib/temporary-guide-info');
 const {temporaryColumns,temporaryFields}=require('../lib/temporary-metadata');
+const {publishOfficialHistory}=require('../lib/publish-official-history');
 
 const base=()=>process.env.SUPABASE_URL+'/rest/v1/';
 const headers=()=>({apikey:process.env.SUPABASE_SECRET_KEY,Authorization:'Bearer '+process.env.SUPABASE_SECRET_KEY,'Content-Type':'application/json'});
@@ -56,8 +57,14 @@ async function publish(id,route) {
     });
     await markRoute(guides.length?null:publishedItem);
   } else if(route.step!=='Publicada') {
-    // Sin biblioteca de historial configurada, no se reemplaza la versión oficial.
-    throw fail(409,'La publicación oficial está pendiente: falta configurar la biblioteca de historial de versiones.');
+    if(request.guide_type!=='Guía oficial') throw fail(409,'La publicación de este tipo de guía aún no está definida.');
+    if(route.step!=='Lista para publicar') throw fail(409,'La ruta de firmas aún no ha terminado.');
+    const current=await connectLibrary(),history=await connectLibrary('history');let publishedItem;
+    await publishOfficialHistory(guides.length?guides:[request],current,history,readDraft,async (guide,item)=>{
+      if(guides.length && guide.publication_state!=='Publicada') await commitComboGuide(guide,{publication_state:'Publicada',published_at:new Date().toISOString(),published_item_id:item.id});
+      publishedItem=item.id;
+    });
+    await markRoute(guides.length?null:publishedItem);
   }
 }
 module.exports=async(req,res)=>{
