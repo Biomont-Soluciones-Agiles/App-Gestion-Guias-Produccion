@@ -2,7 +2,9 @@ const { session, hasRole } = require('./_auth');
 const {getRequest, commit, canEdit, editable, fail} = require('../lib/request-state');
 const {connectLibrary, draftPrefix} = require('../lib/sharepoint');
 const {approveTechnical,approveComboTechnical} = require('../lib/technical-approval');
-const {approveInitial}=require('../lib/initial-approval');
+const {approveInitial,prepareDraft}=require('../lib/initial-approval');
+const {deleteDraft}=require('../lib/draft-storage');
+const {randomUUID}=require('node:crypto');
 const {validateComboSelection,listComboGuides}=require('../lib/combo-guides');
 const url = () => `${process.env.SUPABASE_URL}/rest/v1`;
 const headers = () => ({ apikey: process.env.SUPABASE_SECRET_KEY, Authorization: `Bearer ${process.env.SUPABASE_SECRET_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=representation' });
@@ -66,11 +68,26 @@ module.exports = async (req, res) => {
             guides.push({sharepoint_item_id:id,guide_name:source.name,product:meta.Producto || '',production_phase:meta.FaseProduccion || '',production_line:meta.LineaProd || meta.LineaProduccion || ''});
           }
           Object.assign(fields,guides[0]);
-          const payload=assigning?{p_request:fields,p_guides:guides,p_emitter:emitter,p_actor:user.email}:{p_request:fields,p_guides:guides,p_email:user.email};
-          const created=await fetch(`${url()}/rpc/${assigning?'create_asc_assignment':'create_combo_request'}`,{method:'POST',headers:headers(),body:JSON.stringify(payload)});
-          if(!created.ok) throw fail(created.status===400?409:502,assigning?'No se pudo asignar la guía. Comprueba que el emisor esté activo.':'No se pudo crear la solicitud de varias guías.');
-          const id=await created.json();
-          return send(res,201,await getRequest(String(id)));
+          const draftPaths=[];let committing=false;
+          try {
+            if(assigning) {
+              const storageId=randomUUID();
+              for(const guide of guides) {
+                const version=await prepareDraft(storageId,guide,library,draftPaths);
+                guide.baseline_object_path=version.baseline;guide.draft_object_path=version.draft;
+              }
+              if(guides.length===1) {fields.baseline_object_path=guides[0].baseline_object_path;fields.draft_object_path=guides[0].draft_object_path;}
+            }
+            const payload=assigning?{p_request:fields,p_guides:guides,p_emitter:emitter,p_actor:user.email}:{p_request:fields,p_guides:guides,p_email:user.email};
+            committing=true;
+            const created=await fetch(`${url()}/rpc/${assigning?'create_asc_assignment_prepared':'create_combo_request'}`,{method:'POST',headers:headers(),body:JSON.stringify(payload)});
+            if(!created.ok) throw fail(created.status===400?409:502,assigning?'No se pudo asignar la guía. Comprueba que el emisor esté activo.':'No se pudo crear la solicitud de varias guías.');
+            const id=await created.json();
+            return send(res,201,await getRequest(String(id)));
+          } catch(error) {
+            if(!committing || error.status===409) await Promise.all(draftPaths.map(deleteDraft));
+            throw error;
+          }
         }
         if (!/^[A-Za-z0-9_-]+$/.test(fields.sharepoint_item_id || '')) throw fail(400,'Selecciona una guía del catálogo.');
         const library = await connectLibrary();

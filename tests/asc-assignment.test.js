@@ -16,17 +16,18 @@ test('ASC solo recibe emisores activos',async()=>{
   finally {global.fetch=previous;}
 });
 test('la asignación registra al emisor y a la persona de ASC',async()=>{
-  const previous=global.fetch,sharepoint=require('../lib/sharepoint'),original=sharepoint.connectLibrary;
+  const previous=global.fetch,sharepoint=require('../lib/sharepoint'),original=sharepoint.connectLibrary,initial=require('../lib/initial-approval'),originalPrepare=initial.prepareDraft;
   let submitted;
   sharepoint.connectLibrary=async()=>({drive:{id:'biblioteca'},json:async path=>path.includes('/root?')?{id:'raiz'}:{id:'archivo',name:'Guía.xlsx',file:{},parentReference:{id:'raiz'},listItem:{fields:{Producto:'Producto',FaseProduccion:'Fabricación'}}}});
+  initial.prepareDraft=async()=>({baseline:'base-privada',draft:'borrador-limpio'});
   const handlerPath=require.resolve('../api/requests');delete require.cache[handlerPath];const assignmentHandler=require('../api/requests');
   global.fetch=async(url,options)=>{
-    if(String(url).includes('/rpc/create_asc_assignment')) {submitted=JSON.parse(options.body);return Response.json('solicitud');}
+    if(String(url).includes('/rpc/create_asc_assignment_prepared')) {submitted=JSON.parse(options.body);return Response.json('solicitud');}
     if(String(url).includes('/production_requests?')) return Response.json([{id:'solicitud',workflow_events:[]}]);
     throw Error('Petición inesperada');
   };
   try {
     const res=response();await assignmentHandler({method:'POST',query:{},headers:{cookie:cookie('ASC')},body:{action:'assign',emitter:'ana@biomont.com.pe',guides:[{sharepoint_item_id:'archivo'}],request:{request_code:'REQ-1'}}},res);
-    assert.equal(res.statusCode,201);assert.equal(submitted.p_emitter,'ana@biomont.com.pe');assert.equal(submitted.p_actor,'usuario@biomont.com.pe');assert.equal(submitted.p_guides[0].guide_name,'Guía.xlsx');
-  } finally {global.fetch=previous;sharepoint.connectLibrary=original;delete require.cache[handlerPath];}
+    assert.equal(res.statusCode,201);assert.equal(submitted.p_emitter,'ana@biomont.com.pe');assert.equal(submitted.p_actor,'usuario@biomont.com.pe');assert.equal(submitted.p_guides[0].guide_name,'Guía.xlsx');assert.equal(submitted.p_request.draft_object_path,'borrador-limpio');assert.equal(submitted.p_guides[0].baseline_object_path,'base-privada');
+  } finally {global.fetch=previous;sharepoint.connectLibrary=original;initial.prepareDraft=originalPrepare;delete require.cache[handlerPath];}
 });
