@@ -7,6 +7,7 @@ const {hasSignatureAccess} = require('../lib/signature-access');
 const {openWorkbook} = require('../lib/workbook');
 const {recalculate} = require('../lib/recalculate');
 const {decorateRouteWorkbook} = require('../lib/route-workbook');
+const {clearPreviousSignatures} = require('../lib/clear-previous-signatures');
 const {listComboGuides}=require('../lib/combo-guides');
 
 module.exports = async (req,res) => {
@@ -85,7 +86,8 @@ module.exports = async (req,res) => {
       return res.json({revision,itemId:item.id,webUrl,sheets:book.sheets,sheet});
     }
     if (req.body?.revision!==revision) throw fail(409,'La guía cambió. Vuelve a abrirla antes de guardar.');
-    const output=selected && Array.isArray(req.body?.changes) && req.body.changes.length===0 ? bytes : recalculate(book.apply(req.body.changes));
+    const hasChanges=Array.isArray(req.body?.changes) && req.body.changes.length>0;
+    const output=selected && !hasChanges ? bytes : clearPreviousSignatures(recalculate(book.apply(req.body.changes)));
     if (!row.draft_object_path) {
       const latest=await library.item(item.id);
       if (latest.eTag!==item.eTag) throw fail(409,'El Excel cambió en SharePoint. Vuelve a abrirlo.');
