@@ -26,7 +26,7 @@ module.exports = async (req,res) => {
     const row=selected?{...parent,...selected,id:parent.id,workflow_stage:parent.workflow_stage,workflow_events:parent.workflow_events}:parent;
     if (!row.sharepoint_item_id) throw fail(404,'La solicitud carece de archivo de SharePoint.');
     const comparing=req.query.compare==='1';
-    if (comparing && !hasRole(user,'Jefatura')) throw fail(403,'Acceso reservado a Jefatura.');
+    if (comparing && !hasRole(user,'Jefatura') && !(hasRole(user,'ASC') && parent.workflow_stage === 'PENDIENTE_ASC_TECNICA')) throw fail(403,'No tienes acceso a la comparación en esta etapa.');
     const editing=req.method==='POST' || req.query.edit==='1';
     if (editing && !canEdit(user,row)) throw fail(403,'La edición está cerrada para esta solicitud o este usuario.');
     const library=await connectLibrary(parent.guide_type==='Guía temporal' && parent.requires_modifications===false?'temporary':'standard');
